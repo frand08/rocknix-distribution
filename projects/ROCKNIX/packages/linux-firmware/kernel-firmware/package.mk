@@ -71,8 +71,14 @@ makeinstall_target() {
 
   PKG_KERNEL_CFG_FILE=$(kernel_config_path) || die
 
-  # brcm pcie firmware is only needed by x86_64
-  [ "${TARGET_ARCH}" != "x86_64" ] && rm -fr ${FW_TARGET_DIR}/brcm/*-pcie.*
+  # brcm pcie firmware: strip for non-x86_64, but keep brcmfmac43711-pcie for RK3588 (AP6275P on Orange Pi 5B)
+  if [ "${TARGET_ARCH}" != "x86_64" ]; then
+    if [ "${DEVICE}" = "RK3588" ]; then
+      find ${FW_TARGET_DIR}/brcm -maxdepth 1 -name '*-pcie.*' ! -name 'brcmfmac43711-pcie.*' -delete 2>/dev/null || true
+    else
+      rm -fr ${FW_TARGET_DIR}/brcm/*-pcie.*
+    fi
+  fi
 
   # The BSP kernel for RK3588 reformats the vendor firmware path for Realtek BT devices,
   # so symlink the firmware.

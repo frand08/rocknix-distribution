@@ -47,6 +47,10 @@ pre_configure_target() {
   fi
 }
 
+pre_make_target() {
+  find ${PKG_BUILD} -name flags.make -exec sed -i "s:isystem :I:g" {} \;
+}
+
 makeinstall_target() {
 
   mkdir -p ${INSTALL}/usr/bin

@@ -69,7 +69,7 @@
   # Additional Firmware to use ( )
   # Space separated list is supported,
   # e.g. FIRMWARE=""
-    FIRMWARE="ap6256-firmware ap6611s-firmware g610-mali-csffw iwlwifi-firmware ibt-firmware"
+    FIRMWARE="ap6256-firmware ap6611s-firmware ap6275p-firmware g610-mali-csffw iwlwifi-firmware ibt-firmware"
 
   # Additional packages to install
     ADDITIONAL_PACKAGES="libmali weston-kiosk-shell-dpms libmali-vulkan ap6611s"
