@@ -66,10 +66,11 @@
   <RK3576 mkimage_options="dtb,extlinux,uboot" fdt="device_trees/rk3576-anbernic-rg-vita-pro.dtb" fdt_type="fdt" dtb_prefix="rockchip">
     <file>rk3576-anbernic-rg-vita-pro</file>
   </RK3576>
-  <RK3588 mkimage_options="dtb,extlinux,uboot" fdt="device_trees/rk3588s-gameforce-ace.dtb" fdt_type="fdt" dtb_prefix="rockchip">
+  <RK3588 mkimage_options="dtb,extlinux,uboot" fdt="device_trees/rk3588s-orangepi-5b.dtb" fdt_type="fdt" dtb_prefix="rockchip">
     <file>rk3588s-gameforce-ace</file>
     <file>rk3588s-retro-lite-cm5</file>
     <file>rk3588s-retroled-cm5</file>
+    <file>rk3588s-orangepi-5b</file>
   </RK3588>
   <S922X mkimage_options="dtb,extlinux,gou_extras,uboot" fdt_type="fdtdir" dtb_prefix="amlogic">
     <file>meson-g12b-odroid-go-ultra</file>
