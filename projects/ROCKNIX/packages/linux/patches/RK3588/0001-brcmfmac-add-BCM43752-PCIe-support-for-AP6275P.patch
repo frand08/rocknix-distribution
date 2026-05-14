@@ -1,0 +1,62 @@
+From: Francisco Dominguez <francisco.dominguez@rombit.com>
+Subject: [PATCH] brcmfmac: add BCM43752 PCIe support for AP6275P (Orange Pi 5B)
+
+The Orange Pi 5B uses an AP6275P WiFi module which contains a BCM43752A2
+chip (PCI ID 14E4:449D) connected via PCIe. Add the PCIe device ID and
+firmware definitions so brcmfmac binds to it and loads brcmfmac43752-pcie
+firmware. CY_CC_43752_CHIP_ID (43752) is already defined in brcm_hw_ids.h
+and the RAM base (0x170000) is already handled in chip.c.
+
+BCM43752A2 requires a 256-byte random seed buffer prepended to the NVRAM
+before firmware startup (like BCM4378). The existing seed injection path
+is gated on otp.valid which is never set for BCM43752 since it has no OTP.
+Add an explicit chip ID check to enable seed injection for this chip.
+
+Signed-off-by: Francisco Dominguez <francisco.dominguez@rombit.com>
+---
+--- a/drivers/net/wireless/broadcom/brcm80211/include/brcm_hw_ids.h
++++ b/drivers/net/wireless/broadcom/brcm80211/include/brcm_hw_ids.h
+@@ -92,6 +92,7 @@
+ #define BRCM_PCIE_4371_DEVICE_ID	0x440d
+ #define BRCM_PCIE_4378_DEVICE_ID	0x4425
+ #define CY_PCIE_89459_DEVICE_ID         0x4415
++#define BRCM_PCIE_43752_DEVICE_ID	0x449d
+ #define CY_PCIE_89459_RAW_DEVICE_ID     0x4355
+
+ /* brcmsmac IDs */
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/pcie.c
+@@ -62,6 +62,7 @@
+ BRCMF_FW_DEF(4371, "brcmfmac4371-pcie");
+ BRCMF_FW_CLM_DEF(4378B1, "brcmfmac4378b1-pcie");
+ BRCMF_FW_DEF(4355, "brcmfmac89459-pcie");
++BRCMF_FW_CLM_DEF(43752, "brcmfmac43752-pcie");
+
+ /* firmware config files */
+ MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH "brcmfmac*-pcie.txt");
+@@ -93,6 +94,7 @@
+ 	BRCMF_FW_ENTRY(BRCM_CC_4371_CHIP_ID, 0xFFFFFFFF, 4371),
+ 	BRCMF_FW_ENTRY(BRCM_CC_4378_CHIP_ID, 0xFFFFFFFF, 4378B1), /* revision ID 3 */
+ 	BRCMF_FW_ENTRY(CY_CC_89459_CHIP_ID, 0xFFFFFFFF, 4355),
++	BRCMF_FW_ENTRY(CY_CC_43752_CHIP_ID, 0xFFFFFFFF, 43752),
+ };
+
+ #define BRCMF_PCIE_FW_UP_TIMEOUT		5000 /* msec */
+@@ -1679,7 +1681,8 @@
+ 		memcpy_toio(devinfo->tcm + address, nvram, nvram_len);
+ 		brcmf_fw_nvram_free(nvram);
+
+-		if (devinfo->otp.valid) {
++		if (devinfo->otp.valid ||
++		    devinfo->ci->chip == CY_CC_43752_CHIP_ID) {
+ 			size_t rand_len = BRCMF_RANDOM_SEED_LENGTH;
+ 			struct brcmf_random_seed_footer footer = {
+ 				.length = cpu_to_le32(rand_len),
+@@ -2505,6 +2507,7 @@
+ 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4378_DEVICE_ID),
+ 	BRCMF_PCIE_DEVICE(CY_PCIE_89459_DEVICE_ID),
+ 	BRCMF_PCIE_DEVICE(CY_PCIE_89459_RAW_DEVICE_ID),
++	BRCMF_PCIE_DEVICE(BRCM_PCIE_43752_DEVICE_ID),
+ 	{ /* end: all zeroes */ }
+ };
+
