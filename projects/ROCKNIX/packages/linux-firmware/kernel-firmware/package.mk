@@ -71,10 +71,10 @@ makeinstall_target() {
 
   PKG_KERNEL_CFG_FILE=$(kernel_config_path) || die
 
-  # brcm pcie firmware: strip for non-x86_64, but keep brcmfmac43711-pcie for RK3588 (AP6275P on Orange Pi 5B)
+  # brcm pcie firmware: strip for non-x86_64, but keep brcmfmac43752-pcie for RK3588 (AP6275P / BCM43752 on Orange Pi 5B)
   if [ "${TARGET_ARCH}" != "x86_64" ]; then
     if [ "${DEVICE}" = "RK3588" ]; then
-      find ${FW_TARGET_DIR}/brcm -maxdepth 1 -name '*-pcie.*' ! -name 'brcmfmac43711-pcie.*' -delete 2>/dev/null || true
+      find ${FW_TARGET_DIR}/brcm -maxdepth 1 -name '*-pcie.*' ! -name 'brcmfmac43752-pcie.*' -delete 2>/dev/null || true
     else
       rm -fr ${FW_TARGET_DIR}/brcm/*-pcie.*
     fi
