@@ -16,15 +16,15 @@ makeinstall_target() {
   # PCIe WiFi firmware for AP6275P (BCM43752A2 / PCI ID 14E4:449D)
   # Use the AP6275P-specific firmware from ap6275p/ (not the generic brcm/ variants)
   [ -f ap6275p/fw_bcm43752a2_pcie_ag.bin ] && \
-    cp -av ap6275p/fw_bcm43752a2_pcie_ag.bin \
+    cp -Lv ap6275p/fw_bcm43752a2_pcie_ag.bin \
     ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/brcmfmac43752-pcie.bin || true
   [ -f ap6275p/clm_bcm43752a2_pcie_ag.blob ] && \
-    cp -av ap6275p/clm_bcm43752a2_pcie_ag.blob \
+    cp -Lv ap6275p/clm_bcm43752a2_pcie_ag.blob \
     ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/brcmfmac43752-pcie.clm_blob || true
   [ -f ap6275p/nvram_ap6275p.txt ] && \
-    cp -av ap6275p/nvram_ap6275p.txt \
+    cp -Lv ap6275p/nvram_ap6275p.txt \
     ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/brcmfmac43752-pcie.txt || true
 
   # BT firmware (UART HCI, used by ap6611s autostart script)
-  [ -f brcm/SYN43711A0.hcd ] && cp -av brcm/SYN43711A0.hcd ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/ || true
+  [ -f brcm/SYN43711A0.hcd ] && cp -Lv brcm/SYN43711A0.hcd ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/ || true
 }
