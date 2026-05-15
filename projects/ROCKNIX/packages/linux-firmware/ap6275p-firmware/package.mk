@@ -25,6 +25,6 @@ makeinstall_target() {
     cp -Lv ap6275p/nvram_ap6275p.txt \
     ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/brcmfmac43752-pcie.txt || true
 
-  # BT firmware (UART HCI, used by ap6611s autostart script)
-  [ -f brcm/SYN43711A0.hcd ] && cp -Lv brcm/SYN43711A0.hcd ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/ || true
+  # BT firmware for BCM4362A2 (AP6275P UART BT, OPi 5B)
+  [ -f ap6275p/BCM4362A2.hcd ] && cp -Lv ap6275p/BCM4362A2.hcd ${INSTALL}/$(get_kernel_overlay_dir)/lib/firmware/brcm/ || true
 }

@@ -15,4 +15,11 @@ makeinstall_target() {
   mkdir -p ${INSTALL}/usr/bin
   cp ${PKG_DIR}/bin/brcm_patchram_plus_rk3399 ${INSTALL}/usr/bin
   chmod +x ${INSTALL}/usr/bin/brcm_patchram_plus_rk3399
+
+  mkdir -p ${INSTALL}/usr/lib/systemd/system
+  cp ${PKG_DIR}/system.d/ap6611s-bluetooth.service ${INSTALL}/usr/lib/systemd/system/
+
+  mkdir -p ${INSTALL}/usr/lib/autostart/common
+  cp ${PKG_DIR}/autostart/008-ap6611s ${INSTALL}/usr/lib/autostart/common/
+  chmod 0755 ${INSTALL}/usr/lib/autostart/common/008-ap6611s
 }

@@ -1,14 +1,18 @@
 [Unit]
-Description=Bluetooth OPi5 Max
+Description=Bluetooth OPi5 Max/Ultra/5B
 After=bluetooth.target
 
 [Service]
 Type=simple
-ExecStartPre=/usr/sbin/rfkill unblock all
-ExecStart=/usr/bin/brcm_patchram_plus_rk3399 -d --enable_hci --no2bytes --use_baudrate_for_download --tosleep 200000 --baudrate 1500000 --patchram /lib/firmware/brcm/SYN43711A0.hcd /dev/ttyS7
-TimeoutSec=0
+ExecStartPre=/usr/sbin/rfkill block bluetooth
+ExecStartPre=/usr/bin/sleep 1
+ExecStartPre=/usr/sbin/rfkill unblock bluetooth
+ExecStartPre=/usr/bin/sleep 1
+ExecStart=/bin/sh -c 'MODEL=$(cat /proc/device-tree/model 2>/dev/null | tr -d "\\0"); case "$MODEL" in *"5B"*) UART=/dev/ttyS9 ;; *) UART=/dev/ttyS7 ;; esac; exec /usr/bin/btattach -B $UART -P bcm -S 1500000'
+ExecStartPost=/usr/bin/sleep 5
+ExecStartPost=/usr/bin/hciconfig hci0 up
+TimeoutSec=60
 RemainAfterExit=yes
-SysVStartPriority=99
 
 [Install]
 WantedBy=multi-user.target
