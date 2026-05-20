@@ -23,7 +23,9 @@ for FOLDER_LINK in "${FOLDER_LINKS[@]}"; do
   ln -sf "$TARGET_FOLDER" "$SOURCE_FOLDER"
 done
 
-export QT_QPA_PLATFORM=xcb
+# On RK3588 with libmali, gpudriver bind-mounts /dev/null over libGL.so at boot.
+umount /usr/lib/libGL.so 2>/dev/null || true
+
+export QT_QPA_PLATFORM=wayland
 set_kill set "-9 rpcs3"
-sway_fullscreen "RPCS3" "class" &
 /usr/bin/rpcs3-sa

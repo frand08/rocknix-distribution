@@ -1,0 +1,195 @@
+--- a/libweston/desktop/xdg-shell.c
++++ b/libweston/desktop/xdg-shell.c
+@@ -769,6 +769,7 @@
+ 	}
+ 
+ 	if (toplevel->next.state.fullscreen &&
++	    toplevel->next.size.width != 0 && toplevel->next.size.height != 0 &&
+ 	    (toplevel->next.size.width < geometry.width ||
+ 	     toplevel->next.size.height < geometry.height)) {
+ 		struct weston_desktop_client *client =
+@@ -1517,10 +1518,8 @@
+ 		weston_desktop_surface_get_surface (dsurface);
+ 
+ 	if (weston_surface_has_content(wsurface) && !surface->configured) {
+-		wl_resource_post_error(surface->resource,
+-				       XDG_SURFACE_ERROR_UNCONFIGURED_BUFFER,
+-				       "xdg_surface has never been configured");
+-		return;
++		weston_log("xdg_surface: commit before configure (Qt compat)\n");
++		surface->configured = true;
+ 	}
+ 
+ 	if (surface->has_next_geometry) {
+@@ -1531,9 +1530,8 @@
+ 
+ 	switch (surface->role) {
+ 	case WESTON_DESKTOP_XDG_SURFACE_ROLE_NONE:
+-		wl_resource_post_error(surface->resource,
+-				       XDG_SURFACE_ERROR_NOT_CONSTRUCTED,
+-				       "xdg_surface must have a role");
++		weston_log("xdg_surface: commit without role (Mali windowed compat)\n");
++		weston_desktop_api_committed(surface->desktop, surface->desktop_surface, c);
+ 		break;
+ 	case WESTON_DESKTOP_XDG_SURFACE_ROLE_TOPLEVEL:
+ 		weston_desktop_xdg_toplevel_committed((struct weston_desktop_xdg_toplevel *) surface, c);
+@@ -1690,13 +1688,6 @@
+ 		return;
+ 	}
+ 
+-	if (weston_surface_has_content(wsurface)) {
+-		wl_resource_post_error(resource,
+-				       XDG_SURFACE_ERROR_UNCONFIGURED_BUFFER,
+-				       "xdg_surface must not have a buffer at creation");
+-		return;
+-	}
+-
+ 	surface = zalloc(weston_desktop_surface_role_biggest_size);
+ 	if (surface == NULL) {
+ 		wl_client_post_no_memory(wl_client);
+--- a/libweston/desktop/xdg-shell-v6.c
++++ b/libweston/desktop/xdg-shell-v6.c
+@@ -1301,10 +1301,8 @@
+ 		weston_desktop_surface_get_surface (dsurface);
+ 
+ 	if (weston_surface_has_content(wsurface) && !surface->configured) {
+-		wl_resource_post_error(surface->resource,
+-				       ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
+-				       "xdg_surface has never been configured");
+-		return;
++		weston_log("xdg_surface: commit before configure (Qt compat)\n");
++		surface->configured = true;
+ 	}
+ 
+ 	if (surface->has_next_geometry) {
+@@ -1495,12 +1493,6 @@
+ 	if (surface->resource == NULL)
+ 		return;
+ 
+-	if (weston_surface_has_content(wsurface)) {
+-		wl_resource_post_error(surface->resource,
+-				       ZXDG_SURFACE_V6_ERROR_UNCONFIGURED_BUFFER,
+-				       "xdg_surface must not have a buffer at creation");
+-		return;
+-	}
+ }
+ 
+ static void
+--- a/kiosk-shell/kiosk-shell.c
++++ b/kiosk-shell/kiosk-shell.c
+@@ -618,6 +618,11 @@
+ 	struct kiosk_shell *shell = shoutput->shell;
+ 	struct kiosk_shell_surface *s;
+ 
++	weston_log("kiosk-shell: set_active_surface_tree output=%s prev=%s new=%s\n",
++		   shoutput->output ? shoutput->output->name : "NULL",
++		   shoutput->active_surface_tree ? "has-prev" : "no-prev",
++		   shroot ? "new-surface" : "NULL");
++
+ 	/* Remove the previous active surface tree (i.e., move the tree to
+ 	 * WESTON_LAYER_POSITION_HIDDEN) */
+ 	if (shoutput->active_surface_tree) {
+@@ -842,6 +847,10 @@
+ 	struct kiosk_shell_surface *shsurf;
+ 	struct weston_surface *surface =
+ 		weston_desktop_surface_get_surface(desktop_surface);
++	const char *app_id = weston_desktop_surface_get_app_id(desktop_surface);
++
++	weston_log("kiosk-shell: surface_added app_id=%s\n",
++		   app_id ? app_id : "(null)");
+ 
+ 	shsurf = kiosk_shell_surface_create(shell, desktop_surface);
+ 	if (!shsurf)
+@@ -918,9 +927,13 @@
+ 		weston_desktop_surface_get_user_data(desktop_surface);
+ 	struct weston_surface *surface =
+ 		weston_desktop_surface_get_surface(desktop_surface);
++	const char *app_id = weston_desktop_surface_get_app_id(desktop_surface);
+ 	struct weston_seat *seat;
+ 	struct kiosk_shell_seat* kiosk_seat;
+ 
++	weston_log("kiosk-shell: surface_removed app_id=%s\n",
++		   app_id ? app_id : "(null)");
++
+ 	if (!shsurf)
+ 		return;
+ 
+@@ -985,7 +998,35 @@
+ 	bool is_resized;
+ 	bool is_fullscreen;
+ 
+-	assert(shsurf);
++	if (!shsurf) {
++		struct kiosk_shell *shell = data;
++		struct kiosk_shell_output *shoutput_iter;
++		struct weston_output *best_output = NULL;
++
++		/* Mali Vulkan WSI creates xdg_surface without xdg_toplevel, so
++		 * kiosk-shell never receives surface_added for this surface.
++		 * Synthesize surface management so it gets mapped and receives
++		 * Wayland frame callbacks. */
++		shsurf = kiosk_shell_surface_create(shell, desktop_surface);
++		if (!shsurf)
++			return;
++
++		wl_list_for_each(shoutput_iter, &shell->output_list, link) {
++			if (shoutput_iter->output) {
++				best_output = shoutput_iter->output;
++				break;
++			}
++		}
++		kiosk_shell_surface_set_output(shsurf, best_output);
++		shsurf->appid_output_assigned = true;
++		/* Do NOT call set_size/set_fullscreen: those require xdg_toplevel */
++	}
++
++	weston_log("kiosk-shell: surface_committed app_id=%s width=%d height=%d mapped=%d parent=%s\n",
++		   app_id ? app_id : "(null)",
++		   surface->width, surface->height,
++		   weston_surface_is_mapped(surface),
++		   shsurf->parent ? "yes" : "no");
+ 
+ 	if (surface->width == 0)
+ 		return;
+@@ -999,9 +1040,16 @@
+ 		output = kiosk_shell_surface_find_best_output(shsurf);
+ 
+ 		kiosk_shell_surface_set_output(shsurf, output);
+-		weston_desktop_surface_set_size(shsurf->desktop_surface,
+-						shsurf->output->width,
+-						shsurf->output->height);
++		weston_log("kiosk-shell: appid_output_assign app_id=%s output=%s\n",
++			   app_id, shsurf->output ? shsurf->output->name : "NULL");
++		if (shsurf->output) {
++			/* Send (0,0) = unconstrained size so the client does not
++			 * resize its Vulkan swapchain, avoiding VK_ERROR_SURFACE_LOST
++			 * on drivers that incorrectly return SURFACE_LOST instead of
++			 * OUT_OF_DATE on surface geometry changes (e.g. Mali). */
++			weston_desktop_surface_set_size(shsurf->desktop_surface,
++							0, 0);
++		}
+ 		/* even if we couldn't find an appid set for a particular
+ 		 * output still flag the shsurf as to a avoid changing the
+ 		 * output every time */
+@@ -1045,6 +1093,11 @@
+ 						      shsurf->output);
+ 		struct kiosk_shell_seat *kiosk_seat;
+ 
++		weston_log("kiosk-shell: mapping surface app_id=%s shoutput=%s parent=%s\n",
++			   app_id ? app_id : "(null)",
++			   shoutput ? (shoutput->output ? shoutput->output->name : "no-output") : "NULL",
++			   shsurf->parent ? "yes" : "no");
++
+ 		weston_surface_map(surface);
+ 
+ 		kiosk_seat = get_kiosk_shell_seat(seat);
+@@ -1052,6 +1105,9 @@
+ 		/* We are mapping a new surface tree root; set it active,
+ 		 * replacing the previous one */
+ 		if (!shsurf->parent) {
++			weston_log("kiosk-shell: set_active_surface_tree for app_id=%s shoutput=%s\n",
++				   app_id ? app_id : "(null)",
++				   shoutput ? (shoutput->output ? shoutput->output->name : "no-output") : "NULL");
+ 			kiosk_shell_output_set_active_surface_tree(shoutput,
+ 								   shsurf);
+ 		}

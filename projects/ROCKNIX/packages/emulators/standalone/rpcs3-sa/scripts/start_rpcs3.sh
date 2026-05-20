@@ -3,7 +3,23 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2022-present JELOS (https://github.com/JustEnoughLinuxOS)
 
+# Save WAYLAND_DISPLAY inherited from parent before /etc/profile overwrites it.
+# profile.d sets WAYLAND_DISPLAY=wayland-1 but weston may create wayland-0.
+_WD_SAVE="${WAYLAND_DISPLAY}"
 . /etc/profile
+# Probe for the real weston socket: prefer the inherited value, fall back to
+# the first existing socket under XDG_RUNTIME_DIR.
+_XDG="${XDG_RUNTIME_DIR:-/var/run/0-runtime-dir}"
+for _WD in "${_WD_SAVE}" "wayland-0" "wayland-1" "wayland-2"; do
+  [ -n "${_WD}" ] && [ -S "${_XDG}/${_WD}" ] && { export WAYLAND_DISPLAY="${_WD}"; break; }
+done
+
+# On RK3588 with libmali, gpudriver bind-mounts /dev/null over libGL.so at boot,
+# following all symlinks to the real file (e.g. libGL.so.1.7.0).
+# Unmount both the real resolved path and the symlink path to restore libGL.so.1.
+_LIBGL_REAL=$(readlink -f /usr/lib/libGL.so 2>/dev/null)
+[ -n "${_LIBGL_REAL}" ] && umount "${_LIBGL_REAL}" 2>/dev/null || true
+umount /usr/lib/libGL.so 2>/dev/null || true
 
 # Check if rpcs3 exists in .config
 if [ ! -d "/storage/.config/rpcs3" ]; then
@@ -62,10 +78,11 @@ else
 fi
 
 #Graphics Backend
-if [ "$GRENDERER" = "vulkan" ]; then
-  sed -i '/Video:/ {n; s/Renderer: .*/Renderer: Vulkan/}' "${CONFIG_YML}"
-else
+if [ "$GRENDERER" = "opengl" ]; then
   sed -i '/Video:/ {n; s/Renderer: .*/Renderer: OpenGL/}' "${CONFIG_YML}"
+else
+  # Default to Vulkan; it's the only renderer that works on Mali Wayland
+  sed -i '/Video:/ {n; s/Renderer: .*/Renderer: Vulkan/}' "${CONFIG_YML}"
 fi
 
 #Internal Resolution
@@ -175,15 +192,18 @@ fi
 #Check if its a PSN game
 GAME_PATH=""
 PSNID=""
+ISO_MOUNT=""
 if [[ "${1}" == *.psn ]]; then
-  # Hardcoded now for testing
   read -r PSNID < "${1}"
   GAME_PATH="/storage/.config/rpcs3/dev_hdd0/game/${PSNID}/USRDIR/EBOOT.BIN"
 elif [[ "${1}" == *.m3u ]]; then
-  #check if path is M3U
   read -r M3UPATH < "${1}"
   echo ${M3UPATH}
   GAME_PATH="/roms/ps3/${M3UPATH}"
+elif [[ "${1}" == *.iso ]] || [[ "${1}" == *.ISO ]]; then
+  ISO_MOUNT=$(mktemp -d)
+  mount -o loop,ro "${1}" "${ISO_MOUNT}" 2>/dev/null
+  GAME_PATH="${ISO_MOUNT}/PS3_GAME/USRDIR/EBOOT.BIN"
 else
   GAME_PATH="${1}"
 fi
@@ -206,15 +226,27 @@ ASYNC TEXTURE STREAMING: ${ATEXTURE}
 VSYNC: ${VSYNC}
 SHOW UI: ${SUI}
 CONFIG_YML: ${CONFIG_YML}
+WAYLAND_DISPLAY: ${WAYLAND_DISPLAY}
+XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR}
+QT_QPA_PLATFORM: wayland
+GAME_PATH: ${GAME_PATH}
 EOF
 
 # Run rpcs3
-if [ "$SUI" = "true" ]; then
-  export QT_QPA_PLATFORM=wayland
-  set_kill set "-9 rpcs3"
-  ${EMUPERF} /usr/bin/rpcs3-sa
+export QT_QPA_PLATFORM=wayland
+set_kill set "-9 rpcs3"
+if [ -n "$GAME_PATH" ]; then
+  if [ "${SUI}" = "true" ]; then
+    ${EMUPERF} /usr/bin/rpcs3-sa "$GAME_PATH" >>/var/log/rpcs3-sa.log 2>&1
+  else
+    ${EMUPERF} /usr/bin/rpcs3-sa --no-gui "$GAME_PATH" >>/var/log/rpcs3-sa.log 2>&1
+  fi
 else
-  export QT_QPA_PLATFORM=xcb
-  set_kill set "-9 rpcs3"
-  ${EMUPERF} /usr/bin/rpcs3-sa --no-gui "$GAME_PATH"
+  ${EMUPERF} /usr/bin/rpcs3-sa >>/var/log/rpcs3-sa.log 2>&1
+fi
+
+# Unmount ISO if we mounted one
+if [ -n "$ISO_MOUNT" ]; then
+  umount "$ISO_MOUNT" 2>/dev/null || true
+  rmdir "$ISO_MOUNT" 2>/dev/null || true
 fi

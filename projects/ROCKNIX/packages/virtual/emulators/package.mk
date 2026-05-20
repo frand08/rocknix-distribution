@@ -49,7 +49,7 @@ case "${DEVICE}" in
     ;;
   RK3588|SM6115)
     [ "${ENABLE_32BIT}" == "true" ] && EMUS_32BIT="box86 desmume-lr gpsp-lr pcsx_rearmed-lr"
-    PKG_EMUS+=" aethersx2-sa azahar-sa dolphin-sa drastic-sa mednafen melonds-sa supermodel-sa vita3k-sa"
+    PKG_EMUS+=" aethersx2-sa azahar-sa dolphin-sa drastic-sa mednafen melonds-sa rpcs3-sa supermodel-sa vita3k-sa"
     LIBRETRO_CORES+=" beetle-psx-lr beetle-saturn-lr bsnes-lr bsnes-hd-lr dolphin-lr"
     ;;
   SM8250)
@@ -1123,7 +1123,7 @@ makeinstall_target() {
 
   ### Sony Playstation 3
   case ${DEVICE} in
-    SM8250|SM8550|SM8650|SM8750)
+    RK3588|SM8250|SM8550|SM8650|SM8750)
       add_emu_core ps3 rpcs3 rpcs3-sa true
       add_es_system ps3
       install_script "Start RPCS3.sh"
