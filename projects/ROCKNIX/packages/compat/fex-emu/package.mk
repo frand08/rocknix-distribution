@@ -106,7 +106,12 @@ makeinstall_target() {
   cp -rf "${PKG_DIR}/config/gptk" "${INSTALL}/usr/config/fex-emu"
   mkdir -p "${INSTALL}/usr/config/modules"
   cp -rf "${PKG_DIR}/scripts/"* "${INSTALL}/usr/config/modules"
-  cp "${TOOLCHAIN}/lib/libvulkan_freedreno.so" "${INSTALL}/usr/share/fex-emu/"
+  mkdir -p "${INSTALL}/usr/share/fex-emu/"
+  if listcontains "${GRAPHIC_DRIVERS}" "freedreno"; then
+    cp "${TOOLCHAIN}/lib/libvulkan_freedreno.so" "${INSTALL}/usr/share/fex-emu/"
+  elif listcontains "${GRAPHIC_DRIVERS}" "panfrost"; then
+    cp "${TOOLCHAIN}/lib/libvulkan_panfrost.so" "${INSTALL}/usr/share/fex-emu/"
+  fi
 }
 
 makeinstall_host() {

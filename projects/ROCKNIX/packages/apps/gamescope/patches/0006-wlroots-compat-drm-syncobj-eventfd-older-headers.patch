@@ -1,0 +1,66 @@
+From: ROCKNIX
+Subject: [PATCH] gamescope+wlroots: compat fallback for drm_syncobj_eventfd (pre-6.0 kernel headers)
+
+drm_syncobj_eventfd and DRM_IOCTL_SYNCOBJ_EVENTFD were added to the
+Linux kernel UAPI in v6.0. xf86drm.h includes <drm/drm.h> directly,
+so sysroots with older kernel headers miss these definitions. Guard
+with #ifndef so newer headers still win.
+
+--- a/subprojects/wlroots/render/drm_syncobj.c	2026-05-20 09:23:41.980446982 -0300
++++ b/subprojects/wlroots/render/drm_syncobj.c	2026-05-20 09:23:41.979447028 -0300
+@@ -11,6 +11,17 @@
+ #if HAVE_EVENTFD
+ #include <sys/eventfd.h>
+ #endif
++/* Compat: drm_syncobj_eventfd / DRM_IOCTL_SYNCOBJ_EVENTFD added in Linux 6.0 */
++#ifndef DRM_IOCTL_SYNCOBJ_EVENTFD
++struct drm_syncobj_eventfd {
++	__u32 handle;
++	__u32 flags;
++	__u64 point;
++	__s32 fd;
++	__u32 pad;
++};
++#define DRM_IOCTL_SYNCOBJ_EVENTFD DRM_IOWR(0xCF, struct drm_syncobj_eventfd)
++#endif
+ 
+ struct wlr_drm_syncobj_timeline *wlr_drm_syncobj_timeline_create(int drm_fd) {
+ 	struct wlr_drm_syncobj_timeline *timeline = calloc(1, sizeof(*timeline));
+--- a/subprojects/wlroots/types/wlr_linux_drm_syncobj_v1.c	2026-05-20 10:06:07.401708585 -0300
++++ b/subprojects/wlroots/types/wlr_linux_drm_syncobj_v1.c	2026-05-20 09:49:57.970940481 -0300
+@@ -8,6 +8,17 @@
+ #include <wlr/types/wlr_linux_drm_syncobj_v1.h>
+ #include <wlr/util/log.h>
+ #include <xf86drm.h>
++/* Compat: drm_syncobj_eventfd / DRM_IOCTL_SYNCOBJ_EVENTFD added in Linux 6.0 */
++#ifndef DRM_IOCTL_SYNCOBJ_EVENTFD
++struct drm_syncobj_eventfd {
++	__u32 handle;
++	__u32 flags;
++	__u64 point;
++	__s32 fd;
++	__u32 pad;
++};
++#define DRM_IOCTL_SYNCOBJ_EVENTFD DRM_IOWR(0xCF, struct drm_syncobj_eventfd)
++#endif
+ #include "config.h"
+ #include "linux-drm-syncobj-v1-protocol.h"
+ 
+--- a/src/Timeline.cpp	2026-05-20 10:06:07.402650817 -0300
++++ b/src/Timeline.cpp	2026-05-20 09:58:38.268877566 -0300
+@@ -1,4 +1,15 @@
+ #include <xf86drm.h>
++/* Compat: drm_syncobj_eventfd / DRM_IOCTL_SYNCOBJ_EVENTFD added in Linux 6.0 */
++#ifndef DRM_IOCTL_SYNCOBJ_EVENTFD
++struct drm_syncobj_eventfd {
++	__u32 handle;
++	__u32 flags;
++	__u64 point;
++	__s32 fd;
++	__u32 pad;
++};
++#define DRM_IOCTL_SYNCOBJ_EVENTFD DRM_IOWR(0xCF, struct drm_syncobj_eventfd)
++#endif
+ #include <sys/eventfd.h>
+ 
+ #include "Timeline.h"

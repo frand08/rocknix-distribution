@@ -79,11 +79,26 @@ steam_debug_print() {
 }
 
 steam_read_sway_geometry() {
-  eval "$(swaymsg -t get_outputs | jq -r '
-    .[] | select(.focused == true) |
-    "W=\(.current_mode.width) H=\(.current_mode.height) TRANSFORM=\(.transform) REFRESH=\(.current_mode.refresh // 60000)"
-  ')"
-  REFRESH_HZ=$((REFRESH / 1000))
+  # Skip if geometry was already computed and passed through the scope re-exec.
+  [ -n "$W" ] && [ -n "$H" ] && return
+
+  # Read display geometry from DRM sysfs — works without a running compositor.
+  local f res
+  for f in /sys/class/drm/*/status; do
+    [ "$(cat "$f" 2>/dev/null)" = "connected" ] || continue
+    res=$(cat "$(dirname "$f")/modes" 2>/dev/null | head -1)
+    if [ -n "$res" ]; then
+      W=${res%%x*}
+      H=${res##*x}
+      break
+    fi
+  done
+
+  # Hard fallback: assume 1280x720 if sysfs provided nothing (e.g. DSI panel without EDID).
+  W=${W:-1280}
+  H=${H:-720}
+  REFRESH_HZ=${REFRESH_HZ:-60}
+  TRANSFORM=${TRANSFORM:-normal}
 }
 
 steam_scope_reexec_if_needed() {
@@ -97,6 +112,12 @@ steam_scope_reexec_if_needed() {
       -E _STEAM_SCOPE=1 \
       -E HOME="$HOME" \
       -E USER="$USER" \
+      -E WAYLAND_DISPLAY="${WAYLAND_DISPLAY}" \
+      -E DISPLAY="${DISPLAY}" \
+      -E W="${W}" \
+      -E H="${H}" \
+      -E REFRESH_HZ="${REFRESH_HZ}" \
+      -E TRANSFORM="${TRANSFORM}" \
       -- "${STEAM_MAIN_SCRIPT}" "$@"
   fi
 }
@@ -142,6 +163,9 @@ steam_launch_bigpicture() {
     touch "$gamescope_mode_file"
   fi
 
+  local mangoapp_flag=""
+  command -v mangoapp &>/dev/null && mangoapp_flag="--mangoapp"
+
   if [ "${STEAM_FLAVOR}" = "arm64" ]; then
     SDL_VIDEODRIVER=x11 LD_LIBRARY_PATH=/storage/.local/share/Steam/lib/aarch64-linux-gnu/ ${EMUPERF} /storage/.local/share/Steam/steamrtarm64/steam -steamdeck -exitsteam
     if [ "${GAMESCOPE}" = "0" ]; then
@@ -149,8 +173,11 @@ steam_launch_bigpicture() {
       exit 0
     else
       systemctl stop sway
-      GAMESCOPE_MODE_SAVE_FILE="${gamescope_mode_file}" GAMESCOPE_FAKE_OUTPUT_MM=508x286 env -u WAYLAND_DISPLAY LD_LIBRARY_PATH=/storage/.local/share/Steam/lib/aarch64-linux-gnu/ ${EMUPERF} \
-        gamescope $PREFER_OUTPUT -W "$W" -H "$H" -r "$REFRESH_HZ" --xwayland-count 2 --mangoapp --backend drm --force-orientation "${force_orientation}" --use-rotation-shader -e -- \
+      systemctl restart seatd
+      sleep 1
+      GAMESCOPE_MODE_SAVE_FILE="${gamescope_mode_file}" GAMESCOPE_FAKE_OUTPUT_MM=508x286 env -u WAYLAND_DISPLAY ${EMUPERF} \
+        gamescope $PREFER_OUTPUT -W "$W" -H "$H" -r "$REFRESH_HZ" --xwayland-count 2 ${mangoapp_flag} --backend drm --force-orientation "${force_orientation}" --use-rotation-shader -e -- \
+        env LD_LIBRARY_PATH=/storage/.local/share/Steam/lib/aarch64-linux-gnu/ \
         /storage/.local/share/Steam/steamrtarm64/steam -steamdeck -steamos3 -gamepadui -noverifyfiles -nobootstrapupdate -skipinitialbootstrap -norepairfiles ${game_uri:+"$game_uri"}
       systemctl start essway
       exit 0
@@ -163,8 +190,10 @@ steam_launch_bigpicture() {
       exit 0
     else
       systemctl stop sway
+      systemctl restart seatd
+      sleep 1
       GAMESCOPE_MODE_SAVE_FILE="${gamescope_mode_file}" GAMESCOPE_FAKE_OUTPUT_MM=508x286 env -u WAYLAND_DISPLAY ${EMUPERF} \
-        gamescope $PREFER_OUTPUT -W "$W" -H "$H" -r "$REFRESH_HZ" --xwayland-count 2 --mangoapp --backend drm --force-orientation "${force_orientation}" --use-rotation-shader -e -- \
+        gamescope $PREFER_OUTPUT -W "$W" -H "$H" -r "$REFRESH_HZ" --xwayland-count 2 ${mangoapp_flag} --backend drm --force-orientation "${force_orientation}" --use-rotation-shader -e -- \
         FEX /usr/bin/steam -steamdeck -steamos3 -gamepadui -noverifyfiles -nobootstrapupdate -skipinitialbootstrap -norepairfiles ${game_uri:+"$game_uri"}
       systemctl start essway
       exit 0

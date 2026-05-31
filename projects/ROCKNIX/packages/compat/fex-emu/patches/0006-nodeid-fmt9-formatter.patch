@@ -1,0 +1,19 @@
+diff --git a/FEXCore/Source/Interface/IR/IR.h b/FEXCore/Source/Interface/IR/IR.h
+--- a/FEXCore/Source/Interface/IR/IR.h
++++ b/FEXCore/Source/Interface/IR/IR.h
+@@ -690,3 +690,15 @@ struct std::hash<FEXCore::IR::NodeID> {
+     return std::hash<FEXCore::IR::NodeID::value_type> {}(ID.Value);
+   }
+ };
++
++// fmt < 10 doesn't support format_as ADL; add an explicit formatter for NodeID
++// so that it can be used directly with fmt::format on systems with fmt 9.x.
++#if FMT_VERSION < 100000
++template<>
++struct fmt::formatter<FEXCore::IR::NodeID> : fmt::formatter<FEXCore::IR::NodeID::value_type> {
++  template<typename FormatContext>
++  auto format(FEXCore::IR::NodeID ID, FormatContext& ctx) const {
++    return fmt::formatter<FEXCore::IR::NodeID::value_type>::format(ID.Value, ctx);
++  }
++};
++#endif

@@ -31,7 +31,10 @@ ensure_fex_rootfs() {
     echo "FEX needs to download rootfs before starting Steam. This may take a while..."
     FEXRootFSFetcher --distro-name=arch --distro-version=rolling -y -x
   fi
-  cp -f "/usr/share/fex-emu/libvulkan_freedreno.so" "${FEX_ARCH_USR_LIB}"
+  for _vk_lib in libvulkan_freedreno.so libvulkan_panfrost.so; do
+    [ -f "/usr/share/fex-emu/${_vk_lib}" ] && cp -f "/usr/share/fex-emu/${_vk_lib}" "${FEX_ARCH_USR_LIB}" && break
+  done
+  unset _vk_lib
 }
 
 link_steam_library() {

@@ -1,0 +1,52 @@
+From: ROCKNIX
+Subject: [PATCH] rendervulkan: skip DRM_FORMAT_MOD_INVALID in Vulkan modifier probe loop
+
+DRM_FORMAT_MOD_INVALID (0x00ffffffffffffff) is added by gamescope's
+get_plane_formats() as a safe fallback for every DRM format, so it
+always appears in the modifier list returned by GetSupportedModifiers().
+
+The Vulkan spec prohibits passing DRM_FORMAT_MOD_INVALID to
+vkGetPhysicalDeviceImageFormatProperties2 with
+VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT.  The Mali closed-source blob
+(g6p0-01eac0) crashes (SIGSEGV) when given this modifier value, which is
+the first entry in the list and therefore the first call gamescope makes.
+
+Fix: skip DRM_FORMAT_MOD_INVALID in the modifier probe loop inside
+BInit().  Also replace the assert(modifiers.size() > 0) with a graceful
+fallback to DRM_FORMAT_MOD_LINEAR in case the entire KMS modifier list
+consisted only of DRM_FORMAT_MOD_INVALID entries.
+
+---
+ src/rendervulkan.cpp | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+--- a/src/rendervulkan.cpp
++++ b/src/rendervulkan.cpp
+@@ -2242,6 +2242,12 @@
+ 		{
+ 			uint64_t modifier = possibleModifiers[i];
+ 
++			// DRM_FORMAT_MOD_INVALID is not valid for
++			// vkGetPhysicalDeviceImageFormatProperties2 (Vulkan spec) and
++			// crashes the Mali closed-source blob; skip it here.
++			if ( modifier == DRM_FORMAT_MOD_INVALID )
++				continue;
++
+ 			VkExternalImageFormatProperties externalFormatProps = {
+ 				.sType = VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES,
+ 			};
+@@ -2259,7 +2265,13 @@
+ 			modifiers.push_back( modifier );
+ 		}
+ 
+-		assert( modifiers.size() > 0 );
++		if ( modifiers.empty() )
++		{
++			// Fall back to LINEAR if no modifier survived the probe
++			// (e.g. KMS list contained only DRM_FORMAT_MOD_INVALID).
++			vk_log.infof( "no exportable DRM modifiers found for format 0x%x, falling back to LINEAR", drmFormat );
++			modifiers.push_back( DRM_FORMAT_MOD_LINEAR );
++		}
+ 
+ 		modifierListInfo = {
+ 			.sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT,

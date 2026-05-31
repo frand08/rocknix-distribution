@@ -1,0 +1,93 @@
+--- a/src/rendervulkan.cpp
++++ b/src/rendervulkan.cpp
+@@ -442,6 +442,7 @@
+ 	bool hasDrmProps = false;
+ 	bool supportsForeignQueue = false;
+ 	bool supportsHDRMetadata = false;
++	bool supportsRobustness2 = false;
+ 	for ( uint32_t i = 0; i < supportedExtensionCount; ++i )
+ 	{
+ 		if ( strcmp(supportedExts[i].extensionName,
+@@ -459,6 +460,10 @@
+ 		if ( strcmp(supportedExts[i].extensionName,
+ 			 VK_EXT_HDR_METADATA_EXTENSION_NAME) == 0 )
+ 			 supportsHDRMetadata = true;
++
++		if ( strcmp(supportedExts[i].extensionName,
++		     VK_EXT_ROBUSTNESS_2_EXTENSION_NAME) == 0 )
++			supportsRobustness2 = true;
+ 	}
+ 
+ 	vk_log.infof( "physical device %s DRM format modifiers", m_bSupportsModifiers ? "supports" : "does not support" );
+@@ -541,9 +546,19 @@
+ 		m_bSupportsModifiers = false;
+ 	}
+ 
++	bool bSupportsDynamicRendering = false;
++	bool bSupportsScalarBlockLayout = false;
+ 	{
++		VkPhysicalDeviceVulkan13Features vulkan13Features = {
++			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
++		};
++		VkPhysicalDeviceRobustness2FeaturesEXT robustness2Query = {
++			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
++			.pNext = &vulkan13Features,
++		};
+ 		VkPhysicalDeviceVulkan12Features vulkan12Features = {
+ 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
++			.pNext = supportsRobustness2 ? (void *)&robustness2Query : (void *)&vulkan13Features,
+ 		};
+ 		VkPhysicalDeviceFeatures2 features2 = {
+ 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+@@ -552,6 +567,11 @@
+ 		vk.GetPhysicalDeviceFeatures2( physDev(), &features2 );
+ 
+ 		m_bSupportsFp16 = vulkan12Features.shaderFloat16 && features2.features.shaderInt16;
++		bSupportsScalarBlockLayout = vulkan12Features.scalarBlockLayout;
++		bSupportsDynamicRendering = vulkan13Features.dynamicRendering;
++		vk_log.infof( "physical device dynamicRendering=%d scalarBlockLayout=%d nullDescriptor=%d",
++		              bSupportsDynamicRendering, bSupportsScalarBlockLayout,
++		              supportsRobustness2 ? (int)robustness2Query.nullDescriptor : 0 );
+ 	}
+ 
+ 	float queuePriorities = 1.0f;
+@@ -602,7 +622,8 @@
+ 
+ 	enabledExtensions.push_back( VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME );
+ 
+-	enabledExtensions.push_back( VK_EXT_ROBUSTNESS_2_EXTENSION_NAME );
++	if ( supportsRobustness2 )
++		enabledExtensions.push_back( VK_EXT_ROBUSTNESS_2_EXTENSION_NAME );
+ #if 0
+ 	enabledExtensions.push_back( VK_KHR_MAINTENANCE_5_EXTENSION_NAME );
+ #endif
+@@ -625,7 +646,7 @@
+ #if 0
+ 		.pNext = &maintenance5,
+ #endif
+-		.dynamicRendering = VK_TRUE,
++		.dynamicRendering = bSupportsDynamicRendering,
+ 	};
+ 
+ 	VkPhysicalDevicePresentWaitFeaturesKHR presentWaitFeatures = {
+@@ -661,7 +682,7 @@
+ 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+ 		.pNext = std::exchange(features2.pNext, &vulkan12Features),
+ 		.shaderFloat16 = m_bSupportsFp16,
+-		.scalarBlockLayout = VK_TRUE,
++		.scalarBlockLayout = bSupportsScalarBlockLayout,
+ 		.timelineSemaphore = VK_TRUE,
+ 	};
+ 
+@@ -673,9 +694,10 @@
+ 
+ 	VkPhysicalDeviceRobustness2FeaturesEXT robustness2Features = {
+ 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
+-		.pNext = std::exchange(features2.pNext, &robustness2Features),
+ 		.nullDescriptor = VK_TRUE,
+ 	};
++	if ( supportsRobustness2 )
++		robustness2Features.pNext = std::exchange(features2.pNext, &robustness2Features);
+ 
+ 	VkResult res = vk.CreateDevice(physDev(), &deviceCreateInfo, nullptr, &m_device);
+ 	if ( res == VK_ERROR_NOT_PERMITTED_KHR && gamescope::Process::HasCapSysNice() )

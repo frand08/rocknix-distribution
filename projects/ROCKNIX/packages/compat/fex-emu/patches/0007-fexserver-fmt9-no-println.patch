@@ -1,0 +1,33 @@
+--- a/Source/Tools/FEXServer/ProcessPipe.cpp
++++ b/Source/Tools/FEXServer/ProcessPipe.cpp
+@@ -441,7 +441,7 @@
+         // No new blocks => no need to regenerate the corresponding cache
+         continue;
+       } else {
+-        fmt::println("  Found {} new blocks ({} total) in code map {} for {}", Blocks.size(), NumPreviousBlocks, BinaryName, File.Filename);
++        fmt::print("  Found {} new blocks ({} total) in code map {} for {}\n", Blocks.size(), NumPreviousBlocks, BinaryName, File.Filename);
+       }
+     }
+ 
+@@ -623,7 +623,7 @@
+         const auto MergedCodeMapFilename = fmt::format("{}/{}", ReadyCodeMapDirectory, BinaryName);
+         const auto LastCodeMapUpdate = std::filesystem::last_write_time(MergedCodeMapFilename, ec);
+         if (std::filesystem::last_write_time(GetCacheFilename(FileInfo), ec) < LastCodeMapUpdate || ec) {
+-          fmt::println("  Scheduling update for {} cache for {}", ec ? "missing" : "outdated", BinaryName);
++          fmt::print("  Scheduling update for {} cache for {}\n", ec ? "missing" : "outdated", BinaryName);
+           NeedsRefresh = NeedsCacheRefresh::Yes;
+         }
+       }
+@@ -635,10 +635,10 @@
+         }
+ 
+         const auto BinaryName = (std::string)FEXCore::CodeMap::GetBaseFilename(File, !HasMultiblock);
+-        fmt::println("Generating cache for {}", BinaryName);
++        fmt::print("Generating cache for {}\n", BinaryName);
+         int Status = RunOfflineCompiler(fmt::format("{}/{}", ReadyCodeMapDirectory, BinaryName).c_str());
+         if (Status != 0) {
+-          fmt::println("ERROR: Cache generation failed with status {}", Status);
++          fmt::print("ERROR: Cache generation failed with status {}\n", Status);
+         }
+       }
+ 

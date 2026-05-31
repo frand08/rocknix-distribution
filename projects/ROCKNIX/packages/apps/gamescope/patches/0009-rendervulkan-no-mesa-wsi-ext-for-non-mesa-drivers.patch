@@ -1,0 +1,96 @@
+From: ROCKNIX
+Subject: [PATCH] rendervulkan: skip Mesa-internal WSI pNext extensions for non-Mesa drivers
+
+wsi_image_create_info (sType=1000001002) and wsi_memory_allocate_info
+(sType=1000001003) are Mesa-internal extensions used by Mesa's WSI layer
+for scanout image creation and memory allocation.  The Vulkan spec
+requires drivers to skip unrecognised pNext sTypes, but the Mali
+closed-source blob (g6p0-01eac0) violates this and crashes when either
+struct appears in a vkCreateImage or vkAllocateMemory pNext chain.
+
+wsiImageCreateInfo was already guarded by
+  "tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT"
+so it would not be reached when the DRM-modifier path is taken.  But
+wsiMemoryAllocInfo had no such guard and was unconditionally appended
+for every bFlippable image, including the output images allocated
+through vulkan_make_output_images() on the DRM backend.
+
+Fix: detect at device-creation time whether the Vulkan driver is
+Mesa-based (driverName starts with "Mesa") and gate both WSI extension
+additions on that flag.  Non-Mesa drivers (ARM, Qualcomm proprietary,
+etc.) never need these Mesa-internal structs.
+
+---
+ src/rendervulkan.cpp | 27 ++++++++++++++++++++++-----
+ src/rendervulkan.hpp |  4 ++++
+ 2 files changed, 26 insertions(+), 5 deletions(-)
+
+--- a/src/rendervulkan.hpp
++++ b/src/rendervulkan.hpp
+@@ -808,6 +808,7 @@
+ 	inline int drmRenderFd() {return m_drmRendererFd;}
+ 	inline bool supportsModifiers() {return m_bSupportsModifiers;}
+ 	inline bool hasDrmPrimaryDevId() {return m_bHasDrmPrimaryDevId;}
++	inline bool isMesaDriver() {return m_bIsMesaDriver;}
+ 	inline dev_t primaryDevId() {return m_drmPrimaryDevId;}
+ 	inline bool supportsFp16() {return m_bSupportsFp16;}
+ 
+@@ -873,6 +874,9 @@
+ 	bool m_bSupportsFp16 = false;
+ 	bool m_bHasDrmPrimaryDevId = false;
+ 	bool m_bSupportsModifiers = false;
++	// True when the Vulkan driver is Mesa-based; Mesa-internal WSI pNext
++	// extensions must not be sent to non-Mesa drivers (e.g. Mali blob).
++	bool m_bIsMesaDriver = false;
+ 	bool m_bInitialized = false;
+ 
+ 
+--- a/src/rendervulkan.cpp
++++ b/src/rendervulkan.cpp
+@@ -433,6 +433,23 @@
+ {
+ 	vk.GetPhysicalDeviceMemoryProperties( physDev(), &m_memoryProperties );
+ 
++	// Detect whether this is a Mesa-based Vulkan driver.  Mesa-internal WSI
++	// extensions (wsi_image_create_info, wsi_memory_allocate_info) must only
++	// be included in pNext chains for Mesa drivers; the Mali closed-source
++	// blob and other proprietary drivers do not ignore unknown sTypes.
++	{
++		VkPhysicalDeviceDriverPropertiesKHR driverProps = {
++			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR,
++		};
++		VkPhysicalDeviceProperties2 props2 = {
++			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
++			.pNext = &driverProps,
++		};
++		vk.GetPhysicalDeviceProperties2( physDev(), &props2 );
++		m_bIsMesaDriver = strncmp( driverProps.driverName, "Mesa", 4 ) == 0;
++		vk_log.infof( "physical device driver: '%s' (Mesa=%d)", driverProps.driverName, (int)m_bIsMesaDriver );
++	}
++
+ 	uint32_t supportedExtensionCount;
+ 	vk.EnumerateDeviceExtensionProperties( physDev(), NULL, &supportedExtensionCount, NULL );
+ 
+@@ -2260,7 +2277,10 @@
+ 		imageInfo.tiling = tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
+ 	}
+ 
+-	if ( flags.bFlippable == true && tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT )
++	// wsi_image_create_info is a Mesa-internal extension; non-Mesa drivers
++	// (e.g. Mali blob) do not support it and may crash on unknown pNext sTypes.
++	if ( flags.bFlippable == true && tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT
++	     && g_device.isMesaDriver() )
+ 	{
+ 		// We want to scan-out the image
+ 		wsiImageCreateInfo = {
+@@ -2323,7 +2343,9 @@
+ 		VkMemoryDedicatedAllocateInfo memory_dedicated_info = {};
+ 		struct wsi_memory_allocate_info memory_wsi_info = {};
+ 
+-		if ( flags.bFlippable == true )
++		// wsi_memory_allocate_info is a Mesa-internal extension; non-Mesa
++		// drivers (e.g. Mali blob) do not support it and may crash.
++		if ( flags.bFlippable == true && g_device.isMesaDriver() )
+ 		{
+ 			memory_wsi_info = {
+ 				.sType = VK_STRUCTURE_TYPE_WSI_MEMORY_ALLOCATE_INFO_MESA,

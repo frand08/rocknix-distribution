@@ -1,0 +1,31 @@
+--- a/src/rendervulkan.cpp
++++ b/src/rendervulkan.cpp
+@@ -513,8 +513,26 @@
+ 	else
+ #endif
+ 	{
+-		vk_log.errorf( "physical device doesn't support VK_EXT_physical_device_drm" );
+-		return false;
++		// Fallback for Vulkan drivers that lack VK_EXT_physical_device_drm (e.g. Mali blob).
++		// Probe render nodes directly; primaryDevId stays unset so the DRM backend will
++		// log "picking an arbitrary DRM device" and open the first available KMS node.
++		// This works correctly on single-GPU systems such as the RK3588.
++		vk_log.infof( "physical device doesn't support VK_EXT_physical_device_drm, probing render nodes" );
++		for ( int i = 128; i < 192; i++ )
++		{
++			char path[32];
++			snprintf( path, sizeof(path), "/dev/dri/renderD%d", i );
++			m_drmRendererFd = open( path, O_RDWR | O_CLOEXEC );
++			if ( m_drmRendererFd >= 0 )
++			{
++				vk_log.infof( "opened DRM render node: %s", path );
++				break;
++			}
++		}
++		if ( m_drmRendererFd < 0 ) {
++			vk_log.errorf( "physical device doesn't support VK_EXT_physical_device_drm and no render node found" );
++			return false;
++		}
+ 	}
+ 
+ 	if ( m_bSupportsModifiers && !supportsForeignQueue ) {
