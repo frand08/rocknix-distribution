@@ -67,8 +67,19 @@ PerformanceOverlay::~PerformanceOverlay() = default;
 EOF
 }
 
+# The RK3588 Mali Vulkan blob under-reports supported texture formats (e.g. ETC2,
+# VkFormat 147-152). Eden's IsFormatSupported() returns `true` for any format it
+# can't find in the driver's reported set, which then makes the engine create
+# resources the driver can't handle -> heap corruption / crash on demanding games.
+# Make missing formats report unsupported so Eden falls back to CPU decoding.
+eden_fix_format_query() {
+  sed -i '/UNIMPLEMENTED_MSG("Unimplemented format query/{n;s/return true;/return false;/}' \
+    "${PKG_BUILD}/src/video_core/vulkan_common/vulkan_device.cpp"
+}
+
 make_target() {
   eden_drop_qtcharts
+  eden_fix_format_query
 
   local PGO_FILE="${PKG_BUILD}/eden.profdata"
 

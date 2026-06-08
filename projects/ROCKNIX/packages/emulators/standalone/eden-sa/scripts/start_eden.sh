@@ -15,6 +15,13 @@ for _WD in "${_WD_SAVE}" "wayland-1" "wayland-0" "wayland-2"; do
 done
 export XDG_RUNTIME_DIR="${_XDG}"
 
+# On RK3588 with libmali, gpudriver bind-mounts /dev/null over libGL.so at boot.
+# Eden creates a GL context for its GUI even when rendering via Vulkan, so this
+# must be restored or Eden fails with "Unable to create main openGL context".
+_LIBGL_REAL=$(readlink -f /usr/lib/libGL.so 2>/dev/null)
+[ -n "${_LIBGL_REAL}" ] && umount "${_LIBGL_REAL}" 2>/dev/null || true
+umount /usr/lib/libGL.so 2>/dev/null || true
+
 GAME="${1}"
 PLATFORM="${2}"
 ROMNAME=$(echo "${GAME}" | sed "s#^/.*/##")
