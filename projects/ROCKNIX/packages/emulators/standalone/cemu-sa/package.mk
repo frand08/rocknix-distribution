@@ -36,6 +36,9 @@ pre_configure_target() {
   sed -e '/find_package(cubeb)/d' -i ${PKG_BUILD}/CMakeLists.txt
   # Fix glm linking
   sed -e "s#glm::glm#glm#" -i ${PKG_BUILD}/src/{Common,input}/CMakeLists.txt
+  # System libfmt is v9, which lacks fmt::format_string::get(); use v9's
+  # implicit conversion to string_view instead.
+  sed -i 's/text\.get()/fmt::string_view(text)/g' ${PKG_BUILD}/src/Common/precompiled.h
 
   CXXFLAGS+=" -fpch-preprocess"
   PKG_CMAKE_OPTS_TARGET=" -DCMAKE_CXX_FLAGS="-Wno-changes-meaning" \

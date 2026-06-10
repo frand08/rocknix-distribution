@@ -6,6 +6,12 @@
 # Source environment variables
 . /etc/profile
 
+# On RK3588 with libmali, gpudriver bind-mounts /dev/null over libGL.so at boot,
+# which breaks GL context creation. Restore it (no-op on other devices).
+_LIBGL_REAL=$(readlink -f /usr/lib/libGL.so 2>/dev/null)
+[ -n "${_LIBGL_REAL}" ] && umount "${_LIBGL_REAL}" 2>/dev/null || true
+umount /usr/lib/libGL.so 2>/dev/null || true
+
 # Ensure we're using pulseaudio
 export SDL_AUDIODRIVER=pulseaudio
 set_kill set "-9 cemu"

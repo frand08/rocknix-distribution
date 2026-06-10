@@ -425,5 +425,11 @@ fi
 
 # Run Dolphin emulator
   ${GPTOKEYB} ${DOLPHIN_CORE} xbox360 &
+  # Let gptokeyb's virtual xbox360 pad fully register before Dolphin enumerates
+  # input devices. Otherwise, on a host with a real Xbox 360 controller (same
+  # 045e:028e id as gptokeyb's virtual pad), the device hotplugs mid-init and
+  # races Dolphin's SDL controller code -> heap corruption / crash a few seconds
+  # into every game.
+  sleep 3
   ${EMUPERF} /usr/bin/${DOLPHIN_CORE} ${CMD} -e "${1}"
   kill -9 "$(pidof gptokeyb)"

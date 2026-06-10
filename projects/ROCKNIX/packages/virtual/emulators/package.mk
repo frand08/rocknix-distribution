@@ -647,6 +647,8 @@ makeinstall_target() {
   esac
 
   ### Nintendo Wii U
+  # NOTE: RK3588 (Mali) cannot run Cemu — the Mali Vulkan driver lacks
+  # geometryShader, which Cemu requires (vkCreateDevice fails, -8). Not registered.
   case ${DEVICE} in
     SM8250|SM8550|SM8650|SM8750)
       add_emu_core wiiu cemu cemu-sa true

@@ -13,8 +13,11 @@ case ${DEVICE} in
     PKG_VERSION="11759f18e195e89300bcfeb5ada0d977a7851151"
     PKG_SOURCE_NAME="g610-vulkan-mali.tar.gz"
     FILENAME="libmali-valhall-g610-g6p0-wayland-gbm-vulkan.so"
-    # This is some weird default? I didn't want to change behavior of rk3588
-    APIVER="1.0.5"
+    # The g6p0 blob actually reports Vulkan 1.2.165 (per vulkaninfo), but the ICD
+    # advertised only 1.0.5. Apps that create a Vulkan 1.1+ instance (e.g. Eden)
+    # then have the device hidden by the loader -> 0 physical devices -> renderer
+    # init fails. Advertise the blob's real version so 1.1+ instances enumerate it.
+    APIVER="1.2.165"
     PKG_URL="https://github.com/r3claimer/packages/raw/${PKG_VERSION}/g610-vulkan-mali.tar.gz"
   ;;
   RK3566|RK3576)

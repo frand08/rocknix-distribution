@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026-present ROCKNIX (https://github.com/ROCKNIX)
+#
+# Disable USB autosuspend so input devices (game controllers) don't get powered
+# down while idle and drop off the bus mid-game. On RK3588 a controller dropping
+# (usb_submit_urb -19) triggers a hotplug that races emulator input handling and
+# crashes Dolphin (heap corruption) a few seconds/minutes into play.
+
+ACTION!="add|change", GOTO="usb_pm_end"
+SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"
+LABEL="usb_pm_end"
