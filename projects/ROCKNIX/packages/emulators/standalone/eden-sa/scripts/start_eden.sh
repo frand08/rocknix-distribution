@@ -56,6 +56,34 @@ else
   unset EMUPERF
 fi
 
+# Apply EmulationStation per-system graphics settings to Eden's qt-config.ini.
+# IMPORTANT: Eden ignores any value whose "<key>\default" flag is true, so we
+# must clear that flag in addition to writing the value. Empty settings (option
+# left unset in ES) are skipped so Eden keeps its own defaults.
+EDEN_CONF="/storage/.config/eden/qt-config.ini"
+eden_set() {
+  # $1 = ini key, $2 = value
+  [ -z "${2}" ] && return 0
+  [ -f "${EDEN_CONF}" ] || return 0
+  if grep -q "^${1}=" "${EDEN_CONF}"; then
+    sed -i "s~^${1}=.*~${1}=${2}~" "${EDEN_CONF}"
+  else
+    sed -i "/^\[Renderer\]/a ${1}=${2}" "${EDEN_CONF}"
+  fi
+  if grep -q "^${1}\\\\default=" "${EDEN_CONF}"; then
+    sed -i "s~^${1}\\\\default=.*~${1}\\\\default=false~" "${EDEN_CONF}"
+  else
+    sed -i "/^\[Renderer\]/a ${1}\\\\default=false" "${EDEN_CONF}"
+  fi
+}
+
+eden_set resolution_setup          "$(get_setting resolution_scale        "${PLATFORM}" "${ROMNAME}")"
+eden_set gpu_accuracy              "$(get_setting gpu_accuracy             "${PLATFORM}" "${ROMNAME}")"
+eden_set use_asynchronous_shaders  "$(get_setting async_shaders           "${PLATFORM}" "${ROMNAME}")"
+eden_set use_vsync                 "$(get_setting vsync                   "${PLATFORM}" "${ROMNAME}")"
+eden_set max_anisotropy            "$(get_setting anisotropic_filtering   "${PLATFORM}" "${ROMNAME}")"
+eden_set scaling_filter            "$(get_setting scaling_filter          "${PLATFORM}" "${ROMNAME}")"
+
 export QT_QPA_PLATFORM=wayland
 export SDL_AUDIODRIVER=pulseaudio
 

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026-present ROCKNIX (https://github.com/ROCKNIX)
+#
+# Disable WiFi power saving on wlan interfaces (e.g. Orange Pi 5B AP6275P /
+# BCM43752 over PCIe). brcmfmac defaults power_save ON, which makes the radio
+# sleep and miss association/beacon frames -> WiFi shows "enabled" but only
+# connects after repeated retries / toggling off and on, especially on 5 GHz.
+# Forcing power_save off at interface creation makes association immediate and
+# reliable. ROCKNIX RK3588 uses NetworkManager + iwd with no dispatcher.d and a
+# read-only rootfs, so a udev rule is the reliable place for this.
+
+ACTION=="add|change", SUBSYSTEM=="net", KERNEL=="wlan*", RUN+="/usr/sbin/iw dev $name set power_save off"
