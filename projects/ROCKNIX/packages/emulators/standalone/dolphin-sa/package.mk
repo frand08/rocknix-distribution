@@ -59,6 +59,13 @@ else
   GRENDERER="OGL"
 fi
 
+# Dolphin's Vulkan backend deadlocks the RK3588 libmali blob (CSF fence
+# timeout: frozen picture, audio keeps running). Default to GLES there;
+# Vulkan stays available per-game via the ES graphics_backend option.
+if [ "${DEVICE}" = "RK3588" ]; then
+  GRENDERER="OGL"
+fi
+
 post_unpack() {
   sed -i "s|gcc-ar|${TARGET_PREFIX}ar|g" "${PKG_BUILD}/CMakeLists.txt"
   sed -i "s|gcc-ranlib|${TARGET_PREFIX}ranlib|g" "${PKG_BUILD}/CMakeLists.txt"
