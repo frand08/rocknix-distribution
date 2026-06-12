@@ -1,0 +1,220 @@
+--- a/src/Cafe/HW/Latte/Core/LatteTextureLoader.h	2026-06-12 10:43:44.584483486 -0300
++++ b/src/Cafe/HW/Latte/Core/LatteTextureLoader.h	2026-06-12 10:43:44.630373387 -0300
+@@ -1598,6 +1598,46 @@
+ 	}
+ };
+ 
++// Generic fallback for drivers without BC/DXT texture support (e.g. Mali
++// blobs): decompresses any BCn format to RGBA8 on the CPU by reusing the
++// per-pixel decoder of the native BCn decoder class.
++template<typename TBase>
++class TextureDecoder_BC_To_RGBA8_generic : public TBase
++{
++public:
++	static TextureDecoder_BC_To_RGBA8_generic<TBase>* getInstance()
++	{
++		static TextureDecoder_BC_To_RGBA8_generic<TBase> s_instance;
++		return &s_instance;
++	}
++
++	sint32 getBytesPerTexel(LatteTextureLoaderCtx* textureLoader) override
++	{
++		return 4;
++	}
++
++	void decode(LatteTextureLoaderCtx* textureLoader, uint8* outputData) override
++	{
++		for (sint32 y = 0; y < textureLoader->height; y += textureLoader->stepY)
++		{
++			for (sint32 x = 0; x < textureLoader->width; x += textureLoader->stepX)
++			{
++				uint8* blockData = LatteTextureLoader_GetInput(textureLoader, x, y);
++				sint32 blockSizeX = (std::min)(4, textureLoader->width - x);
++				sint32 blockSizeY = (std::min)(4, textureLoader->height - y);
++				for (sint32 py = 0; py < blockSizeY; py++)
++				{
++					for (sint32 px = 0; px < blockSizeX; px++)
++					{
++						uint8* pixelOutput = outputData + ((x + px) + (y + py) * textureLoader->width) * 4;
++						this->decodePixelToRGBA(blockData, pixelOutput, (uint8)px, (uint8)py);
++					}
++				}
++			}
++		}
++	}
++};
++
+ class TextureDecoder_BC1_UNORM_uncompress_generic : public TextureDecoder
+ {
+ public:
+--- a/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.cpp	2026-06-12 10:43:44.585685972 -0300
++++ b/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.cpp	2026-06-12 10:43:44.637246654 -0300
+@@ -2407,6 +2407,13 @@
+ 		UnrecoverableError("failed to create descriptor set layout for swapchain");
+ }
+ 
++static bool IsVkFormatSampledSupported(VkPhysicalDevice physicalDevice, VkFormat fmt)
++{
++	VkFormatProperties props{};
++	vkGetPhysicalDeviceFormatProperties(physicalDevice, fmt, &props);
++	return (props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0;
++}
++
+ void VulkanRenderer::GetTextureFormatInfoVK(Latte::E_GX2SURFFMT format, bool isDepth, Latte::E_DIM dim, sint32 width, sint32 height, FormatInfoVK* formatInfoOut)
+ {
+ 	formatInfoOut->texelCountX = width;
+@@ -2659,44 +2666,134 @@
+ 			break;
+ 			// compressed formats
+ 		case Latte::E_GX2SURFFMT::BC1_SRGB:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC1_RGBA_SRGB_BLOCK; // todo - verify
+-			formatInfoOut->decoder = TextureDecoder_BC1::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC1_RGBA_SRGB_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC1::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R8G8B8A8_SRGB;
++				formatInfoOut->decoder = TextureDecoder_BC_To_RGBA8_generic<TextureDecoder_BC1>::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC1_UNORM:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC1_RGBA_UNORM_BLOCK; // todo - verify
+-			formatInfoOut->decoder = TextureDecoder_BC1::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC1_RGBA_UNORM_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC1::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
++				formatInfoOut->decoder = TextureDecoder_BC_To_RGBA8_generic<TextureDecoder_BC1>::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC2_UNORM:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC2_UNORM_BLOCK; // todo - verify
+-			formatInfoOut->decoder = TextureDecoder_BC2::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC2_UNORM_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC2_UNORM_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC2::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
++				formatInfoOut->decoder = TextureDecoder_BC_To_RGBA8_generic<TextureDecoder_BC2>::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC2_SRGB:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC2_SRGB_BLOCK; // todo - verify
+-			formatInfoOut->decoder = TextureDecoder_BC2::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC2_SRGB_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC2_SRGB_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC2::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R8G8B8A8_SRGB;
++				formatInfoOut->decoder = TextureDecoder_BC_To_RGBA8_generic<TextureDecoder_BC2>::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC3_UNORM:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC3_UNORM_BLOCK;
+-			formatInfoOut->decoder = TextureDecoder_BC3::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC3_UNORM_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC3_UNORM_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC3::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R8G8B8A8_UNORM;
++				formatInfoOut->decoder = TextureDecoder_BC_To_RGBA8_generic<TextureDecoder_BC3>::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC3_SRGB:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC3_SRGB_BLOCK;
+-			formatInfoOut->decoder = TextureDecoder_BC3::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC3_SRGB_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC3_SRGB_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC3::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R8G8B8A8_SRGB;
++				formatInfoOut->decoder = TextureDecoder_BC_To_RGBA8_generic<TextureDecoder_BC3>::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC4_UNORM:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC4_UNORM_BLOCK;
+-			formatInfoOut->decoder = TextureDecoder_BC4::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC4_UNORM_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC4_UNORM_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC4::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R32G32_SFLOAT;
++				formatInfoOut->decoder = TextureDecoder_BC4_UNORM_uncompress::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC4_SNORM:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC4_SNORM_BLOCK;
+-			formatInfoOut->decoder = TextureDecoder_BC4::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC4_SNORM_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC4_SNORM_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC4::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress (no SNORM uncompress decoder; sign lost)
++				formatInfoOut->vkImageFormat = VK_FORMAT_R32G32_SFLOAT;
++				formatInfoOut->decoder = TextureDecoder_BC4_UNORM_uncompress::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC5_UNORM:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC5_UNORM_BLOCK;
+-			formatInfoOut->decoder = TextureDecoder_BC5::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC5_UNORM_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC5_UNORM_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC5::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R32G32_SFLOAT;
++				formatInfoOut->decoder = TextureDecoder_BC5_UNORM_uncompress::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::BC5_SNORM:
+-			formatInfoOut->vkImageFormat = VK_FORMAT_BC5_SNORM_BLOCK;
+-			formatInfoOut->decoder = TextureDecoder_BC5::getInstance();
++			if (IsVkFormatSampledSupported(m_physicalDevice, VK_FORMAT_BC5_SNORM_BLOCK))
++			{
++				formatInfoOut->vkImageFormat = VK_FORMAT_BC5_SNORM_BLOCK;
++				formatInfoOut->decoder = TextureDecoder_BC5::getInstance();
++			}
++			else
++			{
++				// no BC support in driver (e.g. Mali) -> CPU decompress
++				formatInfoOut->vkImageFormat = VK_FORMAT_R32G32_SFLOAT;
++				formatInfoOut->decoder = TextureDecoder_BC5_SNORM_uncompress::getInstance();
++			}
+ 			break;
+ 		case Latte::E_GX2SURFFMT::R24_X8_UNORM:
+ 			formatInfoOut->vkImageFormat = VK_FORMAT_R32_SFLOAT;

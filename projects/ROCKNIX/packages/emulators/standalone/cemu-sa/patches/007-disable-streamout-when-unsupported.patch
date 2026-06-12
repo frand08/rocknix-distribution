@@ -1,0 +1,81 @@
+--- a/src/Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompiler.h	2026-06-12 11:46:07.769964302 -0300
++++ b/src/Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompiler.h	2026-06-12 11:46:07.804389494 -0300
+@@ -269,6 +269,7 @@
+ 	bool strictMul{}; // if true, 0*anything=0 rule is emulated
+ 	// Vulkan-specific
+ 	bool useTFViaSSBO{ false };
++	bool streamoutUnsupported{ false }; // host supports neither transform feedback nor vertex-stage SSBO stores; treat streamout as disabled
+ 	struct
+ 	{
+ 		bool hasRoundingModeRTEFloat32{ false };
+--- a/src/Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompilerAnalyzer.cpp	2026-06-12 11:46:07.772044478 -0300
++++ b/src/Cafe/HW/Latte/LegacyShaderDecompiler/LatteDecompilerAnalyzer.cpp	2026-06-12 11:46:07.810068264 -0300
+@@ -675,7 +675,7 @@
+ {
+ 	// analyze render state
+ 	shaderContext->analyzer.isPointsPrimitive = shaderContext->contextRegistersNew->VGT_PRIMITIVE_TYPE.get_PRIMITIVE_MODE() == Latte::LATTE_VGT_PRIMITIVE_TYPE::E_PRIMITIVE_TYPE::POINTS;
+-	shaderContext->analyzer.hasStreamoutEnable = shaderContext->contextRegisters[mmVGT_STRMOUT_EN] != 0; // set if the shader is used for transform feedback operations
++	shaderContext->analyzer.hasStreamoutEnable = shaderContext->contextRegisters[mmVGT_STRMOUT_EN] != 0 && !shaderContext->options->streamoutUnsupported; // set if the shader is used for transform feedback operations
+ 	if (shaderContext->shaderType == LatteConst::ShaderType::Vertex && !shaderContext->options->usesGeometryShader)
+ 		shaderContext->analyzer.outputPointSize = shaderContext->analyzer.isPointsPrimitive;
+ 	else if (shaderContext->shaderType == LatteConst::ShaderType::Geometry)
+@@ -943,7 +943,7 @@
+ 	if (shader->shaderType == LatteConst::ShaderType::Geometry && shaderContext->parsedGSCopyShader->list_streamWrites.empty() == false)
+ 	{
+ 		shaderContext->analyzer.hasStreamoutWrite = true;
+-		if (shaderContext->contextRegisters[mmVGT_STRMOUT_EN] != 0)
++		if (shaderContext->contextRegisters[mmVGT_STRMOUT_EN] != 0 && !shaderContext->options->streamoutUnsupported)
+ 			shaderContext->analyzer.hasStreamoutEnable = true;
+ 		for (auto& it : shaderContext->parsedGSCopyShader->list_streamWrites)
+ 		{
+--- a/src/Cafe/HW/Latte/Renderer/Renderer.h	2026-06-12 11:46:07.773740231 -0300
++++ b/src/Cafe/HW/Latte/Renderer/Renderer.h	2026-06-12 11:46:07.811308910 -0300
+@@ -90,6 +90,7 @@
+ 
+ 	GfxVendor GetVendor() const { return m_vendor; }
+ 	virtual bool UseTFViaSSBO() const { return false; }
++	virtual bool IsStreamoutSupported() const { return true; }
+ 	virtual void AppendOverlayDebugInfo() = 0;
+ 
+ 	// rendertarget
+--- a/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.h	2026-06-12 11:46:07.775460289 -0300
++++ b/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.h	2026-06-12 11:46:07.811702623 -0300
+@@ -473,6 +473,7 @@
+ 		struct
+ 		{
+ 			bool useTFEmulationViaSSBO = true; // emulate transform feedback via shader writes to a storage buffer
++			bool streamoutSupported = true; // false when the driver can neither do transform feedback nor vertex SSBO stores
+ 		}mode;
+ 
+ 		struct
+@@ -522,6 +523,7 @@
+ 	bool BeginFrame(bool mainWindow) override;
+ 
+ 	bool UseTFViaSSBO() const override { return m_featureControl.mode.useTFEmulationViaSSBO; }
++	bool IsStreamoutSupported() const override { return m_featureControl.mode.streamoutSupported; }
+ 
+ 	// drawcall emulation
+ 	PipelineInfo* draw_createGraphicsPipeline(uint32 indexCount);
+--- a/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.cpp	2026-06-12 11:46:07.777402522 -0300
++++ b/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.cpp	2026-06-12 11:46:07.812074405 -0300
+@@ -654,8 +654,9 @@
+ 		// stores; request only what exists so the device can be created.
+ 		// Games that use streamout will render incorrectly on such drivers.
+ 		deviceFeatures.vertexPipelineStoresAndAtomics = deviceFeatures2.features.vertexPipelineStoresAndAtomics;
++		m_featureControl.mode.streamoutSupported = deviceFeatures.vertexPipelineStoresAndAtomics != VK_FALSE;
+ 		if (!deviceFeatures.vertexPipelineStoresAndAtomics)
+-			cemuLog_log(LogType::Force, "vertexPipelineStoresAndAtomics not supported; transform feedback emulation unavailable");
++			cemuLog_log(LogType::Force, "vertexPipelineStoresAndAtomics not supported; streamout disabled, related effects will be missing");
+ 	}
+ 
+ 	void* deviceExtensionFeatures = nullptr;
+--- a/src/Cafe/HW/Latte/Core/LatteShader.cpp	2026-06-12 11:46:07.779211562 -0300
++++ b/src/Cafe/HW/Latte/Core/LatteShader.cpp	2026-06-12 11:46:07.812275347 -0300
+@@ -766,6 +766,7 @@
+ 	options.usesGeometryShader = geometryShaderEnabled;
+ 	options.spirvInstrinsics.hasRoundingModeRTEFloat32 = false;
+ 	options.useTFViaSSBO = g_renderer->UseTFViaSSBO();
++	options.streamoutUnsupported = !g_renderer->IsStreamoutSupported();
+ 	if (g_renderer->GetType() == RendererAPI::Vulkan)
+ 	{
+ 		options.spirvInstrinsics.hasRoundingModeRTEFloat32 = VulkanRenderer::GetInstance()->HasSPRIVRoundingModeRTE32();

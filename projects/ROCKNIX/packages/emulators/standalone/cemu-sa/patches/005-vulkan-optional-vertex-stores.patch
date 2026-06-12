@@ -1,0 +1,16 @@
+--- a/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.cpp	2026-06-12 09:54:06.918135953 -0300
++++ b/src/Cafe/HW/Latte/Renderer/Vulkan/VulkanRenderer.cpp	2026-06-12 09:54:06.928764441 -0300
+@@ -650,7 +650,12 @@
+ 
+ 	if (m_featureControl.mode.useTFEmulationViaSSBO)
+ 	{
+-		deviceFeatures.vertexPipelineStoresAndAtomics = true;
++		// Mali blobs support neither transform feedback nor vertex SSBO
++		// stores; request only what exists so the device can be created.
++		// Games that use streamout will render incorrectly on such drivers.
++		deviceFeatures.vertexPipelineStoresAndAtomics = deviceFeatures2.features.vertexPipelineStoresAndAtomics;
++		if (!deviceFeatures.vertexPipelineStoresAndAtomics)
++			cemuLog_log(LogType::Force, "vertexPipelineStoresAndAtomics not supported; transform feedback emulation unavailable");
+ 	}
+ 
+ 	void* deviceExtensionFeatures = nullptr;

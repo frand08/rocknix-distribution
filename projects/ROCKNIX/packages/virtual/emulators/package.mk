@@ -50,6 +50,7 @@ case "${DEVICE}" in
   RK3588|SM6115)
     [ "${ENABLE_32BIT}" == "true" ] && EMUS_32BIT="box86 desmume-lr gpsp-lr pcsx_rearmed-lr"
     PKG_EMUS+=" aethersx2-sa azahar-sa dolphin-sa drastic-sa eden-sa mednafen melonds-sa rpcs3-sa supermodel-sa vita3k-sa"
+    [ "${DEVICE}" = "RK3588" ] && PKG_EMUS+=" cemu-sa"
     LIBRETRO_CORES+=" beetle-psx-lr beetle-saturn-lr bsnes-lr bsnes-hd-lr dolphin-lr"
     ;;
   SM8250)
@@ -647,10 +648,12 @@ makeinstall_target() {
   esac
 
   ### Nintendo Wii U
-  # NOTE: RK3588 (Mali) cannot run Cemu — the Mali Vulkan driver lacks
-  # geometryShader, which Cemu requires (vkCreateDevice fails, -8). Not registered.
+  # RK3588 (Mali) needs cemu-sa patch 004-vulkan-optional-features: the blob
+  # lacks geometryShader, so optional Vulkan features are requested
+  # capability-based (as Cemu does on macOS/MoltenVK). GS-dependent effects
+  # may be missing in some games.
   case ${DEVICE} in
-    SM8250|SM8550|SM8650|SM8750)
+    RK3588|SM8250|SM8550|SM8650|SM8750)
       add_emu_core wiiu cemu cemu-sa true
       add_es_system wiiu
       install_script "Start CEMU.sh"
