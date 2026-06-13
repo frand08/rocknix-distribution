@@ -20,10 +20,10 @@ LIBRETRO_CORES="81-lr a5200-lr arduous-lr atari800-lr b2-lr beetle-gba-lr beetle
                 bsnes-mercury-balanced-lr bsnes-mercury-performance-lr beetle-supafaust-lr beetle-supergrafx-lr beetle-vb-lr            \
                 beetle-wswan-lr bluemsx-lr cap32-lr crocods-lr daphne-lr doublecherrygb-lr dosbox-core-lr dosbox-pure-lr duckstation-lr \
                 easyrpg-lr emuscv-lr fake08-lr fbalpha2012-lr fbalpha2019-lr fbneo-lr fceumm-lr flycast-lr flycast2021-lr fmsx-lr       \
-                freechaf-lr freeintv-lr freej2me-lr fuse-lr gambatte-lr gearboy-lr gearcoleco-lr gearsystem-lr geolith-lr               \
-                genesis-plus-gx-lr genesis-plus-gx-wide-lr gw-lr handy-lr hatari-lr idtech-lr jaxe-lr mame-lr mame2003-plus-lr          \
-                mame2010-lr mame2015-lr melonds-lr melonds-ds-lr mesen-lr mesen-s-lr mgba-lr minivmac-lr mojozork-lr mu-lr              \
-                mupen64plus-lr mupen64plus-nx-lr neocd_lr nestopia-lr np2kai-lr o2em-lr opera-lr parallel-n64-lr pcsx_rearmed-lr        \
+                freechaf-lr freeintv-lr freej2me-lr fuse-lr gambatte-lr gearboy-lr gearcoleco-lr geargrafx-lr gearlynx-lr gearsystem-lr \
+                geolith-lr genesis-plus-gx-lr genesis-plus-gx-wide-lr gw-lr handy-lr hatari-lr idtech-lr jaxe-lr mame-lr                \
+                mame2003-plus-lr mame2010-lr mame2015-lr melonds-lr melonds-ds-lr mesen-lr mesen-s-lr mgba-lr minivmac-lr mojozork-lr   \
+                mu-lr mupen64plus-lr mupen64plus-nx-lr neocd_lr nestopia-lr np2kai-lr o2em-lr opera-lr parallel-n64-lr pcsx_rearmed-lr  \
                 picodrive-lr pokemini-lr potator-lr ppsspp-lr prosystem-lr puae-lr puae2021-lr px68k-lr quasi88-lr quicknes-lr race-lr  \
                 same_cdi-lr sameboy-lr sameduck-lr scummvm-lr skyemu-lr smsplus-gx-lr snes9x-lr snes9x2002-lr snes9x2005_plus-lr        \
                 snes9x2010-lr stella-lr swanstation-lr tgbdual-lr theodore-lr tic80-lr uae4arm uzem-lr vba-next-lr vbam-lr vecx-lr      \
@@ -66,7 +66,7 @@ case "${DEVICE}" in
     LIBRETRO_CORES+=" beetle-psx-lr beetle-saturn-lr bsnes-lr bsnes-hd-lr dolphin-lr kronos-lr"
     ;;
   SM8650|SM8750)
-    PKG_EMUS+=" aethersx2-sa azahar-sa bigpemu-sa cemu-sa dolphin-sa eden-sa gopher64-sa heroic mednafen melonds-sa nanoboyadvance-sa rpcs3-sa supermodel-sa \
+    PKG_EMUS+=" aethersx2-sa ares-sa azahar-sa bigpemu-sa cemu-sa dolphin-sa eden-sa gopher64-sa heroic mednafen melonds-sa nanoboyadvance-sa rpcs3-sa supermodel-sa \
                 xemu-sa skyemu-sa steam vita3k-sa"
     LIBRETRO_CORES+=" beetle-psx-lr beetle-saturn-lr bsnes-lr bsnes-hd-lr dolphin-lr kronos-lr"
     ;;
@@ -201,7 +201,7 @@ makeinstall_target() {
   add_emu_core arcade retroarch fbalpha2019 false
   add_emu_core arcade retroarch mame false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core arcade ares ares-sa false
       ;;
   esac
@@ -262,7 +262,7 @@ makeinstall_target() {
   add_emu_core colecovision retroarch bluemsx false
   add_emu_core colecovision retroarch smsplus false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core colecovision ares ares-sa false
       ;;
   esac
@@ -360,7 +360,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core famicom ares ares-sa false
       ;;
   esac
@@ -377,7 +377,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core fds ares ares-sa false
       ;;
   esac
@@ -429,7 +429,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core gb ares ares-sa false
       ;;
   esac
@@ -456,7 +456,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core gbh ares ares-sa false
       ;;
   esac
@@ -491,7 +491,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core gba ares ares-sa false
       ;;
   esac
@@ -518,7 +518,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core gbah ares ares-sa false
       ;;
   esac
@@ -567,7 +567,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core gbc ares ares-sa false
       ;;
   esac
@@ -594,7 +594,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core gbch ares ares-sa false
       ;;
   esac
@@ -671,7 +671,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core gamegear ares ares-sa false
       ;;
   esac
@@ -688,7 +688,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core ggh ares ares-sa false
       ;;
   esac
@@ -701,7 +701,7 @@ makeinstall_target() {
 
   ## Steam & Heroic Games Launcher
   case ${DEVICE} in
-    SM6115|SM8250|SM8550|SM8650|SM8750)
+    SM8250|SM8550|SM8650|SM8750)
       add_emu_core steam steam steam true
       install_script "Install Steam.sh"
       install_script "Uninstall Steam.sh"
@@ -735,6 +735,7 @@ makeinstall_target() {
   ### Atari Lynx
   add_emu_core atarilynx retroarch handy true
   add_emu_core atarilynx retroarch beetle_lynx false
+  add_emu_core atarilynx retroarch gearlynx false
   case ${DEVICE} in
     H700|RK3326|RK3399|RK3576|RK3566|RK3588|SM6115|SM8250|SM8550|SM8650|SM8750)
       add_emu_core atarilynx mednafen lynx false
@@ -794,7 +795,7 @@ makeinstall_target() {
   add_emu_core msx retroarch bluemsx true
   add_emu_core msx retroarch fmsx false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core msx ares ares-sa false
       ;;
   esac
@@ -804,7 +805,7 @@ makeinstall_target() {
   add_emu_core msx2 retroarch bluemsx true
   add_emu_core msx2 retroarch fmsx false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core msx ares ares-sa false
       ;;
   esac
@@ -839,7 +840,7 @@ makeinstall_target() {
   add_emu_core neogeo retroarch mame false
   add_emu_core neogeo retroarch geolith false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core neogeo ares ares-sa false
       ;;
   esac
@@ -849,6 +850,7 @@ makeinstall_target() {
   ### SNK NeoCD
   add_emu_core neocd retroarch neocd true
   add_emu_core neocd retroarch fbneo false
+  add_emu_core neocd retroarch geolith false
   add_es_system neocd
 
   ### SNK NeoGeo Pocket
@@ -860,7 +862,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core ngp ares ares-sa false
       ;;
   esac
@@ -875,7 +877,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core ngpc ares ares-sa false
       ;;
   esac
@@ -902,6 +904,7 @@ makeinstall_target() {
       ;;
     SM8650|SM8750)
       add_emu_core n64 gopher64 gopher64-sa false
+      add_emu_core n64 ares ares-sa false
       ;;
   esac
   add_es_system n64
@@ -911,7 +914,7 @@ makeinstall_target() {
   add_emu_core n64dd retroarch parallel_n64 false
   add_emu_core n64dd mupen64plus mupen64plus-sa false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core n64dd ares ares-sa false
       ;;
   esac
@@ -993,7 +996,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core nes ares ares-sa false
       ;;
   esac
@@ -1010,7 +1013,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core nesh ares ares-sa false
       ;;
   esac
@@ -1036,6 +1039,7 @@ makeinstall_target() {
   add_emu_core pcengine retroarch beetle_pce_fast true
   add_emu_core pcengine retroarch beetle_pce false
   add_emu_core pcengine retroarch beetle_supergrafx false
+  add_emu_core pcengine retroarch geargrafx false
   case ${DEVICE} in
     H700|RK3326|RK3399|RK3576|RK3566|RK3588|SM6115|SM8250|SM8550|SM8650|SM8750)
       add_emu_core pcengine mednafen pce false
@@ -1043,7 +1047,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core pcengine ares ares-sa false
       ;;
   esac
@@ -1053,6 +1057,7 @@ makeinstall_target() {
   add_emu_core pcenginecd retroarch beetle_pce_fast true
   add_emu_core pcenginecd retroarch beetle_pce false
   add_emu_core pcenginecd retroarch beetle_supergrafx false
+  add_emu_core pcenginecd retroarch geargrafx false
   case ${DEVICE} in
     H700|RK3326|RK3399|RK3576|RK3566|RK3588|SM6115|SM8250|SM8550|SM8650|SM8750)
       add_emu_core pcenginecd mednafen pce false
@@ -1060,7 +1065,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core pcenginecd ares ares-sa false
       ;;
   esac
@@ -1183,7 +1188,7 @@ makeinstall_target() {
   ### Sega 32X
   add_emu_core sega32x retroarch picodrive true
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core sega32x ares ares-sa false
       ;;
   esac
@@ -1193,7 +1198,7 @@ makeinstall_target() {
   add_emu_core segacd retroarch genesis_plus_gx true
   add_emu_core segacd retroarch picodrive false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core segacd ares ares-sa false
       ;;
   esac
@@ -1203,7 +1208,7 @@ makeinstall_target() {
   add_emu_core megacd retroarch genesis_plus_gx true
   add_emu_core megacd retroarch picodrive false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core megacd ares ares-sa false
       ;;
   esac
@@ -1219,7 +1224,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core genesis ares ares-sa false
       ;;
   esac
@@ -1235,7 +1240,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core genh ares ares-sa false
       ;;
   esac
@@ -1252,7 +1257,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core mastersystem ares ares-sa false
       ;;
   esac
@@ -1316,7 +1321,7 @@ makeinstall_target() {
   add_emu_core sg-1000 retroarch genesis_plus_gx false
   add_emu_core sg-1000 retroarch picodrive false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core sg-1000 ares ares-sa false
       ;;
   esac
@@ -1338,7 +1343,7 @@ makeinstall_target() {
   ### Sinclair ZX Spectrum
   add_emu_core zxspectrum retroarch fuse true
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core zxspectrum ares ares-sa false
       ;;
   esac
@@ -1351,6 +1356,7 @@ makeinstall_target() {
   ### NEC Super Grafx
   add_emu_core supergrafx retroarch beetle_supergrafx true
   add_emu_core supergrafx retroarch beetle_pce false
+  add_emu_core supergrafx retroarch geargrafx false
   case ${DEVICE} in
     H700|RK3326|RK3399|RK3576|RK3566|RK3588|SM6115|SM8250|SM8550|SM8650|SM8750)
       add_emu_core supergrafx mednafen pce false
@@ -1358,7 +1364,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core supergrafx ares ares-sa false
       ;;
   esac
@@ -1389,7 +1395,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core snes ares ares-sa false
       ;;
   esac
@@ -1420,7 +1426,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core snesh ares ares-sa false
       ;;
   esac
@@ -1451,7 +1457,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core sfc ares ares-sa false
       ;;
   esac
@@ -1464,7 +1470,7 @@ makeinstall_target() {
   add_emu_core satellaview retroarch snes9x2005_plus false
   add_emu_core satellaview retroarch mesen-s false
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core satellaview ares ares-sa false
       ;;
   esac
@@ -1473,7 +1479,7 @@ makeinstall_target() {
   ### Bandai SuFami Turbo
   add_emu_core sufami retroarch snes9x true
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core sufami ares ares-sa false
       ;;
   esac
@@ -1495,6 +1501,7 @@ makeinstall_target() {
   add_emu_core tg16 retroarch beetle_pce_fast true
   add_emu_core tg16 retroarch beetle_pce false
   add_emu_core tg16 retroarch beetle_supergrafx false
+  add_emu_core tg16 retroarch geargrafx false
   case ${DEVICE} in
     H700|RK3326|RK3399|RK3576|RK3566|RK3588|SM6115|SM8250|SM8550|SM8650|SM8750)
       add_emu_core tg16 mednafen pce false
@@ -1507,6 +1514,7 @@ makeinstall_target() {
   add_emu_core tg16cd retroarch beetle_pce_fast true
   add_emu_core tg16cd retroarch beetle_pce false
   add_emu_core tg16cd retroarch beetle_supergrafx false
+  add_emu_core tg16cd retroarch geargrafx false
   case ${DEVICE} in
     H700|RK3326|RK3399|RK3576|RK3566|RK3588|SM6115|SM8250|SM8550|SM8650|SM8750)
       add_emu_core tg16cd mednafen pce false
@@ -1548,7 +1556,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core wonderswan ares ares-sa false
       ;;
   esac
@@ -1562,7 +1570,7 @@ makeinstall_target() {
       ;;
   esac
   case ${DEVICE} in
-    SM8550)
+    SM8550|SM8650|SM8750)
       add_emu_core wonderswancolor ares ares-sa false
       ;;
   esac

@@ -55,6 +55,12 @@ source_devices:
       handler: event*
     capability_map_id: ayn_mcu
 
+  - group: gamepad
+    evdev:
+      phys_path: gpio-keys/input0
+      handler: event*
+    capability_map_id: ayn_mcu
+
 # Optional configuration for the composite device
 options:
   # If true, InputPlumber will automatically try to manage the input device. If
@@ -64,6 +70,5 @@ options:
 
 # The target input device(s) to emulate by default
 target_devices:
-  - xbox-series
-  - mouse
+  - ds5
   - keyboard

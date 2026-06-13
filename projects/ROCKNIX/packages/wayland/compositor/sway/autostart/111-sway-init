@@ -72,6 +72,10 @@ else
     angle="0"
 fi
 
+if [ "${QUIRK_DEVICE}" = "AYN Thor Lite" ]; then
+    con="DSI-1"
+fi
+
 # Main output string base
 output="output ${con}"
 echo "${output} transform ${angle}" >> $SWAY_HOME/config
@@ -109,6 +113,19 @@ if hexdump -C /sys/class/drm/card0-DP-1/edid | grep -q "Lontium"; then
   echo "input \"8746:1:RetroidPocket_RDS_Touchscreen\" calibration_matrix 0 1 0 -1 0 1" >> $SWAY_HOME/config
   echo 'for_window [app_id="emulationstation"] focus output DP-1' >> $SWAY_HOME/config
   con="DP-1"
+else
+  # Any other DP-1 display (AR glasses, external monitor):
+  # Assign workspace 1 to prefer DP-1 with DSI-1 as fallback.
+  # Sway automatically moves workspace 1 to DP-1 when it appears
+  # and back to DSI-1 when it disconnects.
+  echo "workspace 1 output DP-1 ${con}" >> $SWAY_HOME/config
+  echo 'for_window [app_id="emulationstation"] move output DP-1' >> $SWAY_HOME/config
+fi
+
+# Start the external display monitor on any device that has DP or HDMI
+# hardware where the driver does not emit DRM hotplug uevents.
+if ls /sys/class/drm/card*-DP-* /sys/class/drm/card*-HDMI-A-* 2>/dev/null | grep -q .; then
+  echo "exec /usr/bin/output_monitor" >> $SWAY_HOME/config
 fi
 
 if [ "${QUIRK_DEVICE}" = "AYANEO Pocket DS" ]; then
@@ -142,8 +159,25 @@ fi
 if [ "${QUIRK_DEVICE}" = "AYN Thor" ]; then
   echo 'for_window [app_id="emulationstation"] reload' >> $SWAY_HOME/config
   echo "exec_always swaymsg '[app_id=\"emulationstation\"]' focus output ${con}" >> $SWAY_HOME/config
-  echo "exec_always swaymsg '[app_id=\"emulationstation\"]' seat seat1 attach \"0:0:generic_ft5x06_(8d)\"" >> $SWAY_HOME/config
+  echo 'exec_always swaymsg input "0:0:top_touchscreen" map_to_output DSI-2' >> $SWAY_HOME/config
+  echo 'exec_always swaymsg input "0:0:bottom_touchscreen" map_to_output DSI-1' >> $SWAY_HOME/config
+  echo "exec_always swaymsg '[app_id=\"emulationstation\"]' seat seat1 attach \"0:0:top_touchscreen\"" >> $SWAY_HOME/config
+  echo "exec_always swaymsg '[app_id=\"emulationstation\"]' seat seat1 attach \"0:0:bottom_touchscreen\"" >> $SWAY_HOME/config
   echo "exec_always swaymsg '[app_id=\"emulationstation\"]' seat seat1 attach \"4660:22136:InputPlumber_Keyboard\"" >> $SWAY_HOME/config
+fi
+
+if [ "${QUIRK_DEVICE}" = "AYN Thor Lite" ]; then
+    echo "output ${second_con} power off" >> $SWAY_HOME/config
+    echo 'input "0:0:top_touchscreen" map_to_output DSI-1' >> $SWAY_HOME/config
+    echo 'input "0:0:top_touchscreen" calibration_matrix 0 -1 1 1 0 0' >> $SWAY_HOME/config
+    echo 'input "0:0:bottom_touchscreen" map_to_output DSI-2' >> $SWAY_HOME/config
+    echo 'input "0:0:bottom_touchscreen" calibration_matrix 0 -1 1 1 0 0' >> $SWAY_HOME/config
+    echo 'for_window [title=".*(Secondary|\[w2\]|Sub|Bottom|Screen 2|GamePad).*"] output '"${second_con}"' power on' >> $SWAY_HOME/config
+    echo 'for_window [app_id="emulationstation"] reload' >> $SWAY_HOME/config
+    echo "exec_always swaymsg '[app_id=\"emulationstation\"]' focus output ${con}, output ${second_con} power off" >> $SWAY_HOME/config
+    echo "exec_always swaymsg '[app_id=\"emulationstation\"]' seat seat1 attach \"0:0:top_touchscreen\"" >> $SWAY_HOME/config
+    echo "exec_always swaymsg '[app_id=\"emulationstation\"]' seat seat1 attach \"0:0:bottom_touchscreen\"" >> $SWAY_HOME/config
+    echo "exec_always swaymsg '[app_id=\"emulationstation\"]' seat seat1 attach \"4660:22136:InputPlumber_Keyboard\"" >> $SWAY_HOME/config
 fi
 
 # AYANEO Pocket S: force primary output to the internal DSI panel.
@@ -161,7 +195,7 @@ fi
 
 # Anbernic RG DS touchscreen setup
 if [ "${QUIRK_DEVICE}" = "Anbernic RG DS" ]; then
-  echo 'for_window [title=".*(Secondary|\[w2\]|Sub|Bottom|Screen 2|GamePad).*"] output '"${second_con}"' power on' >> $SWAY_HOME/config 
+  echo 'for_window [title=".*(Secondary|\[w2\]|Sub|Bottom|Screen 2|GamePad).*"] output '"${second_con}"' power on' >> $SWAY_HOME/config
   echo 'for_window [app_id="drastic"] output '"${second_con}"' power on, input "1046:911:Goodix_Capacitive_TouchScreen" map_to_output '"${con}" >> $SWAY_HOME/config
   echo 'for_window [app_id="emulationstation"] reload' >> $SWAY_HOME/config
   echo "exec_always swaymsg '[app_id=\"emulationstation\"]' focus output ${con}, output ${second_con} power off" >> $SWAY_HOME/config
