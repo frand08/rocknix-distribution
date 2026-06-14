@@ -77,9 +77,19 @@ eden_fix_format_query() {
     "${PKG_BUILD}/src/video_core/vulkan_common/vulkan_device.cpp"
 }
 
+eden_fix_savedata_assert() {
+  # Games like TotK open Temporary save data; OpenSaveDataFileSystem[BySystemSaveDataId]
+  # ASSERT(false) on Temporary/ProperSystem/SafeMode instead of assigning a StorageId
+  # for the size getter (the save dir is already opened one line above). Map those to
+  # NandUser so the game boots past the crash. Fixes a whole class of save-data crashes.
+  sed -i '/SaveDataSpaceId::SafeMode:/{n;s/ASSERT(false);/id = FileSys::StorageId::NandUser;/}' \
+    "${PKG_BUILD}/src/core/hle/service/filesystem/fsp/fsp_srv.cpp"
+}
+
 make_target() {
   eden_drop_qtcharts
   eden_fix_format_query
+  eden_fix_savedata_assert
 
   local PGO_FILE="${PKG_BUILD}/eden.profdata"
 
