@@ -8,3 +8,6 @@
 PKG_CMAKE_OPTS_TARGET="-DSPIRV_SKIP_TESTS=ON \
                        -DSPIRV_SKIP_EXECUTABLES=ON \
                        -DBUILD_SHARED_LIBS=ON"
+
+# gcc 12 hosts hit -Warray-bounds false positives under the default -Werror
+PKG_CMAKE_OPTS_HOST+=" -DSPIRV_WERROR=OFF"
