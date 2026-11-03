@@ -1,14 +1,18 @@
-From 024b0bdfe850abbf1eaee5b4665947e0dc421401 Mon Sep 17 00:00:00 2001
+From da70b52e6c11b39006bc92a7cd5cbf66091c06aa Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Kamil=20Trzci=C5=84ski?= <ayufan@ayufan.eu>
 Date: Mon, 4 Jan 2021 17:57:49 +0100
-Subject: [PATCH 09/28] mfd: rk8xx: Enable rk808-clkout2 function
+Subject: [PATCH 09/35] mfd: rk8xx: Enable rk808-clkout2 function
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
-???
+The CLK32KOUT2 pin is shared between the 32 kHz clock output and another
+function, selected by bit 1 of CLK32OUT. Select the clock function on
+RK818 during pre-init, so that the rk808-clkout2 clock reaches whatever
+consumes it. The gate itself is left to the clock driver.
 
-Signed-of-by: Kamil Trzciński <ayufan@ayufan.eu>
+Signed-off-by: Kamil Trzciński <ayufan@ayufan.eu>
+Signed-off-by: Ondrej Jirman <megi@xff.cz>
 ---
  drivers/mfd/rk8xx-core.c  | 1 +
  include/linux/mfd/rk808.h | 2 ++

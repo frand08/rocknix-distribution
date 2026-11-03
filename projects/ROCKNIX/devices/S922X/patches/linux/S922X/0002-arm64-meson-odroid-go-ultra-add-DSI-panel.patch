@@ -1,7 +1,7 @@
-From 0c9d819793cd0037e45beb539266b8d84b859247 Mon Sep 17 00:00:00 2001
+From c6e1a5dca69e699e3e26a50366c3610934d3d351 Mon Sep 17 00:00:00 2001
 From: spycat88 <spycat88@users.noreply.github.com>
 Date: Tue, 23 Jan 2024 23:41:40 +0000
-Subject: [PATCH 02/28] arm64: meson: odroid-go-ultra: add DSI panel
+Subject: [PATCH 02/35] arm64: meson: odroid-go-ultra: add DSI panel
 
 ---
  .../amlogic/meson-g12b-odroid-go-ultra.dts    | 66 +++++++++++++++++++
@@ -66,9 +66,9 @@ index cac73c59a94f..015db65b99e1 100644
 +				 <0>,
 +				 <&clkc CLKID_VCLK2_DIV1>,
 +				 <&clkc CLKID_GP0_PLL>;
-+	assigned-clock-rates =	 <344976000>,
++	assigned-clock-rates = <350040000>,
 +				 <0>,
-+				 <344976000>,
++				 <350040000>,
 +				 <0>,
 +				 <0>;
 +

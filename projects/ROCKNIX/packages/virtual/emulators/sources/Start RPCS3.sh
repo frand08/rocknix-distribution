@@ -27,5 +27,5 @@ done
 umount /usr/lib/libGL.so 2>/dev/null || true
 
 export QT_QPA_PLATFORM=wayland
-set_kill set "-9 rpcs3"
+set_kill set "-9 rpcs3-sa"
 /usr/bin/rpcs3-sa
