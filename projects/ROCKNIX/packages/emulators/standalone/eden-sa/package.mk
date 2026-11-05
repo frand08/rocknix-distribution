@@ -86,7 +86,17 @@ eden_fix_savedata_assert() {
     "${PKG_BUILD}/src/core/hle/service/filesystem/fsp/fsp_srv.cpp"
 }
 
+# gcc 16 libstdc++ and fmt 12 no longer pull these in transitively
+eden_fix_includes() {
+  grep -q '<cstring>' "${PKG_BUILD}/src/common/dynamic_library.cpp" || \
+    sed -i 's/^#include <string>$/#include <cstring>\n#include <string>/' \
+      "${PKG_BUILD}/src/common/dynamic_library.cpp"
+  grep -rl --include='*.h' --include='*.cpp' '#include <fmt/core.h>' "${PKG_BUILD}/src" | \
+    xargs -r sed -i 's|#include <fmt/core.h>|#include <fmt/format.h>|'
+}
+
 make_target() {
+  eden_fix_includes
   eden_drop_qtcharts
   eden_fix_format_query
   eden_fix_savedata_assert
