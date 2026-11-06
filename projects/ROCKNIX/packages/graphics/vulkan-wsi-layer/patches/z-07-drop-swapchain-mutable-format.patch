@@ -1,0 +1,17 @@
+Mali g6p0 can't create dma-buf exportable images with MUTABLE_FORMAT, so
+mutable format swapchains fail to initialise (e.g. Eden). Don't advertise
+VK_KHR_swapchain_mutable_format; apps treat it as optional.
+
+--- a/layer/VkLayer_window_system_integration.json
++++ b/layer/VkLayer_window_system_integration.json
+@@ -88,10 +88,6 @@
+             {
+                 "name": "VK_KHR_present_mode_fifo_latest_ready",
+                 "spec_version": "1"
+-            },
+-            {
+-                "name": "VK_KHR_swapchain_mutable_format",
+-                "spec_version": "1"
+             }
+         ],
+         "disable_environment": {

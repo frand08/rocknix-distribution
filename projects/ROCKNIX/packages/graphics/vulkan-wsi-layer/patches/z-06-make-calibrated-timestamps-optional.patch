@@ -1,0 +1,109 @@
+VK_KHR_calibrated_timestamps is only needed for present timing, which also
+requires maintenance9. Don't require it, so older drivers (Mali g6p0) can
+still create devices, and query time domains through the EXT entrypoint
+when the driver lacks the KHR one.
+
+--- a/wsi/wayland/surface_properties.cpp
++++ b/wsi/wayland/surface_properties.cpp
+@@ -284,7 +284,7 @@
+    const std::array required_device_extensions{
+       VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME, VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+       VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,   VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+-      VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,         VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
++      VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
+    };
+    result = extension_list.add(required_device_extensions.data(), required_device_extensions.size());
+    if (result != VK_SUCCESS)
+--- a/wsi/wsi_factory.cpp
++++ b/wsi/wsi_factory.cpp
+@@ -187,6 +187,7 @@
+          VK_EXT_FRAME_BOUNDARY_EXTENSION_NAME,
+ #endif
+          VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
++         VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
+       };
+ 
+       for (auto extension : optional_extensions)
+--- a/layer/calibrated_timestamps_api.cpp
++++ b/layer/calibrated_timestamps_api.cpp
+@@ -125,13 +125,12 @@
+ wsi_layer_vkGetPhysicalDeviceCalibrateableTimeDomainsKHR(VkPhysicalDevice physicalDevice, uint32_t *pTimeDomainCount,
+                                                          VkTimeDomainKHR *pTimeDomains) VWL_API_POST
+ {
+-   auto &instance_data = layer::instance_private_data::get(physicalDevice);
+    assert(pTimeDomainCount != nullptr);
+    VkSwapchainTimeDomainPropertiesEXT swapchain_time_domain_properties = {
+       VK_STRUCTURE_TYPE_SWAPCHAIN_TIME_DOMAIN_PROPERTIES_EXT, nullptr, 0, nullptr, nullptr
+    };
+    uint32_t requested_domain_count = *pTimeDomainCount;
+-   TRY(instance_data.disp.GetPhysicalDeviceCalibrateableTimeDomainsKHR(physicalDevice, pTimeDomainCount, pTimeDomains));
++   TRY(wsi::get_calibrateable_time_domains(physicalDevice, pTimeDomainCount, pTimeDomains));
+    auto present_timing_supported = wsi::present_timing_dependencies_supported(physicalDevice);
+    if (std::holds_alternative<VkResult>(present_timing_supported))
+    {
+--- a/wsi/extensions/present_timing.cpp
++++ b/wsi/extensions/present_timing.cpp
+@@ -806,14 +806,36 @@
+    return (domains_count_to_write < available_domains_count) ? VK_INCOMPLETE : VK_SUCCESS;
+ }
+ 
++VkResult get_calibrateable_time_domains(VkPhysicalDevice physical_device, uint32_t *count, VkTimeDomainKHR *domains)
++{
++   auto &instance_data = layer::instance_private_data::get(physical_device);
++   uint32_t ext_count = 0;
++   TRY(instance_data.disp.EnumerateDeviceExtensionProperties(physical_device, nullptr, &ext_count, nullptr));
++   util::vector<VkExtensionProperties> properties{ util::allocator(instance_data.get_allocator(),
++                                                                   VK_SYSTEM_ALLOCATION_SCOPE_COMMAND) };
++   if (!properties.try_resize(ext_count))
++   {
++      return VK_ERROR_OUT_OF_HOST_MEMORY;
++   }
++   TRY(instance_data.disp.EnumerateDeviceExtensionProperties(physical_device, nullptr, &ext_count, properties.data()));
++
++   const bool has_khr = std::find_if(properties.begin(), properties.end(), [](const VkExtensionProperties &ext) {
++                           return strcmp(ext.extensionName, VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME) == 0;
++                        }) != properties.end();
++   if (has_khr)
++   {
++      return instance_data.disp.GetPhysicalDeviceCalibrateableTimeDomainsKHR(physical_device, count, domains);
++   }
++   return instance_data.disp.GetPhysicalDeviceCalibrateableTimeDomainsEXT(physical_device, count, domains);
++}
++
+ VkResult check_time_domain_support(VkPhysicalDevice physical_device, std::tuple<VkTimeDomainEXT, bool> *domains,
+                                    size_t domain_size)
+ {
+    auto &instance_data = layer::instance_private_data::get(physical_device);
+ 
+    uint32_t supported_domains_count = 0;
+-   TRY(instance_data.disp.GetPhysicalDeviceCalibrateableTimeDomainsKHR(physical_device, &supported_domains_count,
+-                                                                       nullptr));
++   TRY(get_calibrateable_time_domains(physical_device, &supported_domains_count, nullptr));
+ 
+    util::allocator allocator(instance_data.get_allocator(), VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+    util::vector<VkTimeDomainEXT> supported_domains(allocator);
+@@ -822,8 +844,7 @@
+       return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
+ 
+-   TRY(instance_data.disp.GetPhysicalDeviceCalibrateableTimeDomainsKHR(physical_device, &supported_domains_count,
+-                                                                       supported_domains.data()));
++   TRY(get_calibrateable_time_domains(physical_device, &supported_domains_count, supported_domains.data()));
+    for (size_t i = 0; i < domain_size; i++)
+    {
+       std::get<1>(domains[i]) =
+--- a/wsi/extensions/present_timing.hpp
++++ b/wsi/extensions/present_timing.hpp
+@@ -981,6 +981,12 @@
+                                    size_t domain_size);
+ 
+ /**
++ * @brief Query the driver's calibrateable time domains, through the EXT entrypoint
++ *        when the driver lacks VK_KHR_calibrated_timestamps.
++ */
++VkResult get_calibrateable_time_domains(VkPhysicalDevice physical_device, uint32_t *count, VkTimeDomainKHR *domains);
++
++/**
+  * @brief Checks whether present timing dependencies are supported on a given physical device.
+  *
+  * This function queries the list of available device extensions for the specified
